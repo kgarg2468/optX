@@ -105,15 +105,75 @@ async def run_agent_analysis(request: AgentAnalyzeRequest):
     }
 
 
+PARSE_SCENARIO_SYSTEM = """You are a business scenario parser for OptX. The user describes a business what-if scenario in natural language.
+
+Extract structured scenario data and respond with ONLY valid JSON (no markdown, no explanation):
+{
+  "name": "Short scenario name (3-6 words)",
+  "description": "One sentence description of the scenario",
+  "variables": [
+    {
+      "name": "variable_name",
+      "displayName": "Human Readable Name",
+      "modifiedValue": 15,
+      "changeType": "percentage_increase | percentage_decrease | absolute_set | absolute_increase | absolute_decrease",
+      "unit": "percent | dollars | units | months | ratio",
+      "category": "revenue | cost | margin | market | demand | pricing | brand | operations | staffing | capacity"
+    }
+  ]
+}
+
+Rules:
+- Extract ALL variables mentioned or implied in the scenario
+- "raise prices 15%" → changeType: "percentage_increase", modifiedValue: 15
+- "cut costs by $5000" → changeType: "absolute_decrease", modifiedValue: 5000
+- "double marketing spend" → changeType: "percentage_increase", modifiedValue: 100
+- Infer reasonable defaults for implied variables
+- Keep variable names lowercase_snake_case
+- Always return valid JSON"""
+
+CHAT_SYSTEM = """You are OptX AI, a business simulation assistant. You help users understand their simulation results, explore scenarios, and make data-driven decisions.
+
+Be concise and specific. Reference numbers and data when possible. If discussing a scenario, explain the causal relationships between variables."""
+
+
 @app.post("/chat")
 async def chat(request: ChatRequest):
-    """AI chat with report context."""
+    """AI chat with report context or scenario parsing."""
 
-    # TODO: Implement Claude-powered chat with simulation context
+    if request.mode == "parse_scenario":
+        system_prompt = PARSE_SCENARIO_SYSTEM
+    else:
+        system_prompt = CHAT_SYSTEM
 
-    return {
-        "reply": "Chat functionality coming soon. This is a stub response.",
-    }
+    messages = []
+    for msg in request.history:
+        messages.append({
+            "role": msg.get("role", "user"),
+            "content": msg.get("content", ""),
+        })
+    messages.append({"role": "user", "content": request.message})
+
+    try:
+        response = anthropic_client.messages.create(
+            model="claude-sonnet-4-20250514",
+            max_tokens=1024,
+            system=system_prompt,
+            messages=messages,
+        )
+        reply = response.content[0].text
+
+        if request.mode == "parse_scenario":
+            try:
+                parsed = json.loads(reply)
+                return {"reply": reply, "parsed": parsed}
+            except json.JSONDecodeError:
+                return {"reply": reply, "parsed": None, "error": "Failed to parse JSON from response"}
+
+        return {"reply": reply}
+
+    except Exception as e:
+        return {"reply": f"I encountered an error: {str(e)}"}
 
 
 @app.post("/extract-variables")
