@@ -207,6 +207,7 @@ export interface ScenarioVariable {
   baseValue: number;
   modifiedValue: number;
   unit: string;
+  category?: string;
 }
 
 export interface Scenario {

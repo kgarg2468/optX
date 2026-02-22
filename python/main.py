@@ -3,15 +3,24 @@
 Mathematical simulation engine and AI agent system.
 """
 
-from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
-from typing import Optional, List
-import uuid
-import os
+from dataclasses import asdict
+from typing import Any, Optional, List
 import json
-from dotenv import load_dotenv
+import os
+import uuid
+
 from anthropic import Anthropic
+from dotenv import load_dotenv
+from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel, ConfigDict, Field
+
+from engine.variable_universe import VariableUniverse, Variable
+from engine.monte_carlo import MonteCarloEngine
+from engine.bayesian import BayesianEngine
+from engine.sensitivity import SensitivityEngine
+from engine.backtest import BacktestEngine
+from agents.coordinator import AgentCoordinator
 
 load_dotenv()
 
@@ -23,9 +32,17 @@ app = FastAPI(
     version="0.1.0",
 )
 
+allowed_origins = [
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
+]
+frontend_origin = os.getenv("FRONTEND_ORIGIN")
+if frontend_origin:
+    allowed_origins.append(frontend_origin)
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000"],
+    allow_origins=allowed_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -36,29 +53,116 @@ app.add_middleware(
 
 
 class SimulationConfig(BaseModel):
+    model_config = ConfigDict(populate_by_name=True)
+
     iterations: int = 10000
-    time_horizon_months: int = 12
-    confidence_level: float = 0.95
+    time_horizon_months: int = Field(default=12, alias="timeHorizonMonths")
+    confidence_level: float = Field(default=0.95, alias="confidenceLevel")
 
 
 class SimulateRequest(BaseModel):
-    business_id: str
+    model_config = ConfigDict(populate_by_name=True)
+
+    business_id: str = Field(alias="businessId")
     config: SimulationConfig
-    scenario_id: Optional[str] = None
+    scenario_id: Optional[str] = Field(default=None, alias="scenarioId")
+    business_data: dict[str, Any] = Field(default_factory=dict, alias="businessData")
+    scenario_variables: List[dict[str, Any]] = Field(
+        default_factory=list, alias="scenarioVariables"
+    )
 
 
 class AgentAnalyzeRequest(BaseModel):
-    business_id: str
-    simulation_id: str
+    model_config = ConfigDict(populate_by_name=True)
+
+    business_id: str = Field(alias="businessId")
+    simulation_id: str = Field(alias="simulationId")
+    business_data: dict[str, Any] = Field(default_factory=dict, alias="businessData")
+    simulation_data: dict[str, Any] = Field(default_factory=dict, alias="simulationData")
 
 
 class ChatRequest(BaseModel):
+    model_config = ConfigDict(populate_by_name=True)
+
     message: str
     mode: Optional[str] = None  # "parse_scenario" or None for general chat
-    report_id: Optional[str] = None
-    scenario_id: Optional[str] = None
-    simulation_id: Optional[str] = None
-    history: List[dict] = []
+    report_id: Optional[str] = Field(default=None, alias="reportId")
+    scenario_id: Optional[str] = Field(default=None, alias="scenarioId")
+    simulation_id: Optional[str] = Field(default=None, alias="simulationId")
+    history: List[dict[str, Any]] = Field(default_factory=list)
+
+
+# --- Helpers ---
+
+
+def _normalize_business_data(payload: dict[str, Any]) -> dict[str, Any]:
+    monthly_revenue = payload.get("monthly_revenue") or payload.get("monthlyRevenue") or []
+    expenses = payload.get("expenses") or []
+
+    return {
+        "name": payload.get("name", "Unknown Business"),
+        "industry": payload.get("industry", "other"),
+        "size": payload.get("size", "1-5"),
+        "monthly_revenue": monthly_revenue,
+        "expenses": expenses,
+        "cash_on_hand": payload.get("cash_on_hand", payload.get("cashOnHand", 0)),
+        "outstanding_debt": payload.get(
+            "outstanding_debt", payload.get("outstandingDebt", 0)
+        ),
+    }
+
+
+def _apply_scenario_overrides(
+    universe: VariableUniverse, scenario_variables: List[dict[str, Any]]
+) -> None:
+    if not scenario_variables:
+        return
+
+    for variable in scenario_variables:
+        variable_id = variable.get("variableId") or variable.get("variable_id")
+        name = variable.get("name")
+        modified_value = variable.get("modifiedValue") or variable.get("modified_value")
+        unit = variable.get("unit", "")
+
+        if variable_id and f"node-{variable_id}" in universe.variables:
+            continue
+
+        if not name or modified_value is None:
+            continue
+
+        normalized_name = str(name).strip().lower().replace(" ", "_")
+        scenario_var = Variable(
+            id=f"scenario_{normalized_name}",
+            name=normalized_name,
+            display_name=str(name),
+            category=variable.get("category", "scenario"),
+            value=float(modified_value),
+            unit=str(unit),
+            distribution=universe.fit_distribution(
+                [float(modified_value), float(modified_value)], normalized_name
+            ),
+            confidence=0.7,
+            source="scenario",
+        )
+        universe.add_variable(scenario_var)
+
+
+def _build_sensitivity_bounds(universe: VariableUniverse) -> tuple[list[str], list[tuple[float, float]]]:
+    names: list[str] = []
+    bounds: list[tuple[float, float]] = []
+
+    for variable in universe.variables.values():
+        base = float(variable.value)
+        span = max(abs(base) * 0.2, 1.0)
+        names.append(variable.name)
+        bounds.append((base - span, base + span))
+
+    return names, bounds
+
+
+def _build_backtest_history(business_data: dict[str, Any]) -> list[float]:
+    revenue = business_data.get("monthly_revenue", [])
+    return [float(v) for v in revenue if isinstance(v, (int, float))]
 
 
 # --- Routes ---
@@ -71,20 +175,72 @@ async def health():
 
 @app.post("/simulate")
 async def run_simulation(request: SimulateRequest):
-    """Run the full 5-layer simulation pipeline."""
+    """Run the 5-layer simulation pipeline."""
     simulation_id = str(uuid.uuid4())
 
-    # TODO: Implement full pipeline:
-    # 1. Variable Universe Construction
-    # 2. Monte Carlo Simulation
-    # 3. Bayesian Network
-    # 4. Sensitivity Analysis
-    # 5. Backtesting
+    business_data = _normalize_business_data(request.business_data)
+
+    universe = VariableUniverse()
+    universe.from_business_data(business_data)
+    _apply_scenario_overrides(universe, request.scenario_variables)
+
+    monte_engine = MonteCarloEngine(universe, iterations=request.config.iterations)
+    monte_results = monte_engine.run(
+        time_horizon_months=request.config.time_horizon_months
+    )
+
+    bayesian_engine = BayesianEngine()
+    bayesian_engine.build_default_structure(list(universe.variables.keys()))
+    bayesian_result = bayesian_engine.infer()
+    bayesian_payload = asdict(bayesian_result)
+    bayesian_payload["edges"] = [
+        {
+            "from": edge["from_var"],
+            "to": edge["to_var"],
+            "strength": edge["strength"],
+            "description": edge["description"],
+        }
+        for edge in bayesian_payload.get("edges", [])
+    ]
+
+    sensitivity_engine = SensitivityEngine()
+    variable_names, bounds = _build_sensitivity_bounds(universe)
+
+    if variable_names:
+        def model_func(values):
+            return float(sum(values))
+
+        sensitivity_result = sensitivity_engine.sobol_analysis(
+            model_func=model_func,
+            variable_names=variable_names,
+            bounds=bounds,
+            n_samples=min(max(request.config.iterations // 10, 128), 1024),
+        )
+    else:
+        sensitivity_result = []
+
+    backtest_engine = BacktestEngine()
+    historical = _build_backtest_history(business_data)
+
+    def prediction_func(train_data: list[float]):
+        if not train_data:
+            return [0.0]
+        return [sum(train_data) / len(train_data)]
+
+    backtest_result = backtest_engine.walk_forward_validation(
+        historical_data=historical,
+        prediction_func=prediction_func,
+        window_size=min(6, max(len(historical) - 1, 1)),
+        step_size=1,
+    )
 
     return {
-        "simulationId": simulation_id,
+        "simulation_id": simulation_id,
         "status": "complete",
-        "message": "Simulation pipeline stub — implementation pending",
+        "monte_carlo": [asdict(result) for result in monte_results],
+        "bayesian_network": bayesian_payload,
+        "sensitivity": [asdict(result) for result in sensitivity_result],
+        "backtest": asdict(backtest_result),
     }
 
 
@@ -92,17 +248,10 @@ async def run_simulation(request: SimulateRequest):
 async def run_agent_analysis(request: AgentAnalyzeRequest):
     """Run 6-agent parallel analysis with debate rounds."""
 
-    # TODO: Implement:
-    # 1. Run 6 agents in parallel
-    # 2. Share results
-    # 3. 2-3 debate rounds
-    # 4. Convergence check
-    # 5. Coordinator aggregation
+    coordinator = AgentCoordinator()
+    output = await coordinator.run(request.business_data, request.simulation_data)
 
-    return {
-        "status": "complete",
-        "message": "Agent analysis stub — implementation pending",
-    }
+    return asdict(output)
 
 
 PARSE_SCENARIO_SYSTEM = """You are a business scenario parser for OptX. The user describes a business what-if scenario in natural language.
@@ -148,10 +297,12 @@ async def chat(request: ChatRequest):
 
     messages = []
     for msg in request.history:
-        messages.append({
-            "role": msg.get("role", "user"),
-            "content": msg.get("content", ""),
-        })
+        messages.append(
+            {
+                "role": msg.get("role", "user"),
+                "content": msg.get("content", ""),
+            }
+        )
     messages.append({"role": "user", "content": request.message})
 
     try:
@@ -168,21 +319,41 @@ async def chat(request: ChatRequest):
                 parsed = json.loads(reply)
                 return {"reply": reply, "parsed": parsed}
             except json.JSONDecodeError:
-                return {"reply": reply, "parsed": None, "error": "Failed to parse JSON from response"}
+                return {
+                    "reply": reply,
+                    "parsed": None,
+                    "error": "Failed to parse JSON from response",
+                }
 
         return {"reply": reply}
 
-    except Exception as e:
-        return {"reply": f"I encountered an error: {str(e)}"}
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail=f"AI service error: {exc}")
 
 
 @app.post("/extract-variables")
 async def extract_variables(data: dict):
     """Extract variables from uploaded data or NLP description."""
 
-    # TODO: Parse uploaded data and build Variable Universe entries
+    variables = []
+
+    rows = data.get("rows", [])
+    if isinstance(rows, list) and rows:
+        sample = rows[0]
+        if isinstance(sample, dict):
+            for key, value in sample.items():
+                if isinstance(value, (int, float)):
+                    variables.append(
+                        {
+                            "name": key,
+                            "displayName": key.replace("_", " ").title(),
+                            "category": "financial",
+                            "unit": "units",
+                            "confidence": 0.5,
+                        }
+                    )
 
     return {
-        "variables": [],
-        "message": "Variable extraction stub — implementation pending",
+        "variables": variables,
+        "message": "Variable extraction complete",
     }

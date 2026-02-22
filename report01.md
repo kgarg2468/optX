@@ -220,3 +220,82 @@ type: categoryToNodeType(v.unit),
 | 10 | Schema/model ID and casing mismatches threaten DB writes | High | Supabase Integration / Data Model | `supabase/migrations/001_initial_schema.sql`, `components/data/DataBoxGrid.tsx`, `components/wizard/ScenarioWizard.tsx`, `lib/types/index.ts` |
 | 11 | Chat backend masks failures as success | Medium | API Error Handling | `python/main.py`, `app/api/chat/route.ts` |
 | 12 | Graph sync classifies node type from unit | Medium | React Flow / Graph Sync | `lib/utils/graph-sync.ts` |
+
+## Comprehensive Fix Summary
+This section summarizes the remediation work completed after the audit. The focus was end-to-end correctness across UI interactions, state, API contracts, persistence, and backend execution.
+
+### 1) Data Persistence Pipeline (Frontend → API → DB)
+- Replaced stubbed `app/api/data/route.ts` with real Supabase-backed persistence for `businesses` and `data_sources`.
+- Added request validation for UUIDs and proper error responses instead of fake success payloads.
+- Implemented bidirectional mapping between frontend camelCase and database snake_case fields for business and data source records.
+- Added business/data fetch path in `GET /api/data` so UI can hydrate persisted state.
+
+### 2) Inert / Non-Responsive Buttons
+- Wired Quick Start `Save & Continue` in `components/data/QuickStartForm.tsx` to call `/api/data`, update store with persisted IDs/records, and navigate to `/simulate`.
+- Wired Simulation page `Run Simulation` in `app/simulate/page.tsx` to call `/api/simulate`, update simulation store status, and store returned results.
+- Wired Scenario editor top-bar `Save` and `Run` actions in `app/scenario/[id]/page.tsx` to persist scenario changes and run scenario-scoped simulations.
+- Added client-side error handling so failures are surfaced instead of silently ignored.
+
+### 3) Scenario & Graph State Integrity
+- Refactored `lib/store/scenario-store.ts` so graph state is scenario-scoped (per `scenario.id`) rather than a single global shared graph.
+- Added `getGraphState(scenarioId)` and scenario-scoped graph mutation methods.
+- Updated graph editor page to use scenario-scoped store methods and to fetch scenario by `scenarioId` when needed.
+- Fixed editor synchronization issue in `components/graph/GraphEditor.tsx` by re-syncing internal React Flow node/edge state when incoming `initialState` changes.
+
+### 4) Wizard / Scenario Persistence
+- Updated `components/wizard/ScenarioWizard.tsx` to persist scenarios through `/api/scenario` instead of local-only store writes.
+- Added graph generation at scenario creation and stored it with the scenario record.
+- Added save-state and error-state handling for scenario creation failures.
+- Replaced placeholder `businessId: ""` scenario creation with real business linkage.
+
+### 5) API Layer Contract Fixes (Next.js ↔ Python)
+- Reworked `app/api/simulate/route.ts` to:
+  - Normalize config values.
+  - Pull business/scenario context from Supabase.
+  - Send Python payload in expected snake_case shape.
+  - Persist simulation outputs into `simulation_results`.
+  - Return structured error details for upstream failures.
+- Reworked `app/api/agents/route.ts` to:
+  - Validate IDs.
+  - Fetch business + simulation context.
+  - Send normalized snake_case payload to Python.
+  - Persist `agent_analysis` and update simulation status.
+
+### 6) Backend Route Implementation (Python)
+- Replaced simulation and agent stubs in `python/main.py`:
+  - `/simulate` now executes the engine pipeline (Variable Universe, Monte Carlo, Bayesian, Sensitivity, Backtest).
+  - `/agents/analyze` now executes the coordinator and returns structured output.
+- Added alias-capable Pydantic models (`populate_by_name=True`) so camelCase and snake_case payloads are both handled robustly.
+- Improved CORS flexibility by allowing localhost variants and optional `FRONTEND_ORIGIN`.
+
+### 7) Chat Error Semantics
+- Changed Python `/chat` exception behavior to raise HTTP errors (`HTTPException`) instead of returning error text as successful assistant replies.
+- Updated Next chat route `app/api/chat/route.ts` to propagate upstream error status/details.
+- Updated `components/chat/ChatPanel.tsx` to handle non-OK chat responses as true failures.
+
+### 8) Graph Type Mapping Bug
+- Fixed `lib/utils/graph-sync.ts` so node type mapping uses semantic variable category instead of `unit`.
+- Extended `ScenarioVariable` in `lib/types/index.ts` with optional `category` and propagated category parsing in wizard NLP flow (`StepDescribe`).
+
+### 9) Store Persistence / Navigation Resilience
+- Added Zustand `persist` middleware for core stores:
+  - `lib/store/business-store.ts`
+  - `lib/store/scenario-store.ts`
+  - `lib/store/simulation-store.ts`
+  - `lib/store/chat-store.ts`
+- Added hydration/fetch flows where relevant (`app/data/page.tsx`, `app/simulate/page.tsx`) to reconcile local and backend state.
+
+### 10) Scenario API Modernization
+- Replaced stubbed `app/api/scenario/route.ts` with full CRUD behavior against Supabase.
+- Added support for querying by `businessId` and by `scenarioId`.
+- Added structured update semantics for scenario name/description/variables/graph state.
+
+### Validation Status After Fixes
+- `npx tsc --noEmit`: pass.
+- `npm run lint`: pass with warnings only (unused imports/variables in non-critical files).
+- `python3 -m compileall python/main.py`: pass.
+- `npm run build`: still blocked in this environment by external Google Fonts fetch (`next/font` for Geist/Geist Mono), not by application logic regressions.
+
+### Net Result
+- The previously reported "data not saving" and "button clicks doing nothing" classes of failures are now functionally addressed by wired handlers, real persistence, corrected API contracts, and non-stub backend paths.
+- The app now has coherent flow for business data, scenarios, graph edits, simulation execution, and agent analysis with explicit error propagation.

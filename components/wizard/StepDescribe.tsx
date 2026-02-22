@@ -54,12 +54,14 @@ export function StepDescribe({
               displayName?: string;
               modifiedValue: number;
               unit?: string;
+              category?: string;
             }) => ({
               variableId: crypto.randomUUID(),
               name: v.displayName || v.name,
               baseValue: 0,
               modifiedValue: v.modifiedValue,
               unit: v.unit || "",
+              category: v.category,
             })
           );
           onParsed(variables);

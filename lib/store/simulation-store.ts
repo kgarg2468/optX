@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import { createJSONStorage, persist } from "zustand/middleware";
 import type {
   SimulationConfig,
   SimulationResult,
@@ -28,29 +29,45 @@ const defaultConfig: SimulationConfig = {
   confidenceLevel: 0.95,
 };
 
-export const useSimulationStore = create<SimulationState>((set) => ({
-  config: { ...defaultConfig },
-  status: "idle",
-  progress: 0,
-  currentResult: null,
-  pastResults: [],
-  error: null,
-
-  setConfig: (updates) =>
-    set((state) => ({ config: { ...state.config, ...updates } })),
-
-  setStatus: (status) => set({ status }),
-  setProgress: (progress) => set({ progress }),
-  setResult: (result) => set({ currentResult: result }),
-  addPastResult: (result) =>
-    set((state) => ({ pastResults: [result, ...state.pastResults] })),
-  setError: (error) => set({ error }),
-  reset: () =>
-    set({
+export const useSimulationStore = create<SimulationState>()(
+  persist(
+    (set) => ({
       config: { ...defaultConfig },
       status: "idle",
       progress: 0,
       currentResult: null,
+      pastResults: [],
       error: null,
+
+      setConfig: (updates) =>
+        set((state) => ({ config: { ...state.config, ...updates } })),
+
+      setStatus: (status) => set({ status }),
+      setProgress: (progress) => set({ progress }),
+      setResult: (result) => set({ currentResult: result }),
+      addPastResult: (result) =>
+        set((state) => ({ pastResults: [result, ...state.pastResults] })),
+      setError: (error) => set({ error }),
+      reset: () =>
+        set({
+          config: { ...defaultConfig },
+          status: "idle",
+          progress: 0,
+          currentResult: null,
+          error: null,
+        }),
     }),
-}));
+    {
+      name: "optx-simulation-store",
+      storage: createJSONStorage(() => localStorage),
+      partialize: (state) => ({
+        config: state.config,
+        status: state.status,
+        progress: state.progress,
+        currentResult: state.currentResult,
+        pastResults: state.pastResults,
+        error: state.error,
+      }),
+    }
+  )
+);

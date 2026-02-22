@@ -22,11 +22,29 @@ export async function POST(request: NextRequest) {
       }),
     });
 
+    const responseText = await response.text();
+    const result = responseText
+      ? (JSON.parse(responseText) as Record<string, unknown>)
+      : {};
+
     if (!response.ok) {
-      throw new Error(`Chat service error: ${response.statusText}`);
+      return NextResponse.json(
+        {
+          error:
+            (result.detail as string) ||
+            (result.error as string) ||
+            `Chat service error (${response.status})`,
+        },
+        { status: response.status }
+      );
     }
 
-    const result = await response.json();
+    if (typeof result.error === "string" && !result.parsed) {
+      return NextResponse.json(
+        { error: result.error },
+        { status: 502 }
+      );
+    }
 
     return NextResponse.json({
       success: true,

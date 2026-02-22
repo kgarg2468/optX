@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import { createJSONStorage, persist } from "zustand/middleware";
 import type {
   BusinessData,
   DataSource,
@@ -31,6 +32,7 @@ interface BusinessState {
 
   // Data sources
   addDataSource: (source: DataSource) => void;
+  setDataSources: (sources: DataSource[]) => void;
   removeDataSource: (id: string) => void;
   updateDataSource: (id: string, updates: Partial<DataSource>) => void;
 
@@ -54,93 +56,107 @@ const initialBusinessData: Partial<BusinessData> = {
   outstandingDebt: 0,
 };
 
-export const useBusinessStore = create<BusinessState>((set) => ({
-  businessData: { ...initialBusinessData },
-  dataSources: [],
-  dataEntryMode: "quick_start",
-  isLoading: false,
-  isSaving: false,
+export const useBusinessStore = create<BusinessState>()(
+  persist(
+    (set) => ({
+      businessData: { ...initialBusinessData },
+      dataSources: [],
+      dataEntryMode: "quick_start",
+      isLoading: false,
+      isSaving: false,
 
-  setField: (key, value) =>
-    set((state) => ({
-      businessData: { ...state.businessData, [key]: value },
-    })),
+      setField: (key, value) =>
+        set((state) => ({
+          businessData: { ...state.businessData, [key]: value },
+        })),
 
-  setIndustry: (industry) =>
-    set((state) => ({
-      businessData: { ...state.businessData, industry },
-    })),
+      setIndustry: (industry) =>
+        set((state) => ({
+          businessData: { ...state.businessData, industry },
+        })),
 
-  setSize: (size) =>
-    set((state) => ({
-      businessData: { ...state.businessData, size },
-    })),
+      setSize: (size) =>
+        set((state) => ({
+          businessData: { ...state.businessData, size },
+        })),
 
-  setMonthlyRevenue: (monthlyRevenue) =>
-    set((state) => ({
-      businessData: { ...state.businessData, monthlyRevenue },
-    })),
+      setMonthlyRevenue: (monthlyRevenue) =>
+        set((state) => ({
+          businessData: { ...state.businessData, monthlyRevenue },
+        })),
 
-  addExpense: (expense) =>
-    set((state) => ({
-      businessData: {
-        ...state.businessData,
-        expenses: [...(state.businessData.expenses || []), expense],
-      },
-    })),
+      addExpense: (expense) =>
+        set((state) => ({
+          businessData: {
+            ...state.businessData,
+            expenses: [...(state.businessData.expenses || []), expense],
+          },
+        })),
 
-  removeExpense: (id) =>
-    set((state) => ({
-      businessData: {
-        ...state.businessData,
-        expenses: (state.businessData.expenses || []).filter((e) => e.id !== id),
-      },
-    })),
+      removeExpense: (id) =>
+        set((state) => ({
+          businessData: {
+            ...state.businessData,
+            expenses: (state.businessData.expenses || []).filter((e) => e.id !== id),
+          },
+        })),
 
-  updateExpense: (id, updates) =>
-    set((state) => ({
-      businessData: {
-        ...state.businessData,
-        expenses: (state.businessData.expenses || []).map((e) =>
-          e.id === id ? { ...e, ...updates } : e
-        ),
-      },
-    })),
+      updateExpense: (id, updates) =>
+        set((state) => ({
+          businessData: {
+            ...state.businessData,
+            expenses: (state.businessData.expenses || []).map((e) =>
+              e.id === id ? { ...e, ...updates } : e
+            ),
+          },
+        })),
 
-  setRevenueTrend: (revenueTrend, revenueTrendRate) =>
-    set((state) => ({
-      businessData: { ...state.businessData, revenueTrend, revenueTrendRate },
-    })),
+      setRevenueTrend: (revenueTrend, revenueTrendRate) =>
+        set((state) => ({
+          businessData: { ...state.businessData, revenueTrend, revenueTrendRate },
+        })),
 
-  setSeasonalPatterns: (seasonalPatterns) =>
-    set((state) => ({
-      businessData: { ...state.businessData, seasonalPatterns },
-    })),
+      setSeasonalPatterns: (seasonalPatterns) =>
+        set((state) => ({
+          businessData: { ...state.businessData, seasonalPatterns },
+        })),
 
-  addDataSource: (source) =>
-    set((state) => ({
-      dataSources: [...state.dataSources, source],
-    })),
+      addDataSource: (source) =>
+        set((state) => ({
+          dataSources: [...state.dataSources, source],
+        })),
+      setDataSources: (dataSources) => set({ dataSources }),
 
-  removeDataSource: (id) =>
-    set((state) => ({
-      dataSources: state.dataSources.filter((s) => s.id !== id),
-    })),
+      removeDataSource: (id) =>
+        set((state) => ({
+          dataSources: state.dataSources.filter((s) => s.id !== id),
+        })),
 
-  updateDataSource: (id, updates) =>
-    set((state) => ({
-      dataSources: state.dataSources.map((s) =>
-        s.id === id ? { ...s, ...updates } : s
-      ),
-    })),
+      updateDataSource: (id, updates) =>
+        set((state) => ({
+          dataSources: state.dataSources.map((s) =>
+            s.id === id ? { ...s, ...updates } : s
+          ),
+        })),
 
-  setDataEntryMode: (dataEntryMode) => set({ dataEntryMode }),
-  setBusinessData: (data) =>
-    set((state) => ({
-      businessData: { ...state.businessData, ...data },
-    })),
-  resetBusinessData: () =>
-    set({ businessData: { ...initialBusinessData }, dataSources: [] }),
-  setLoading: (isLoading) => set({ isLoading }),
-  setSaving: (isSaving) => set({ isSaving }),
-}));
+      setDataEntryMode: (dataEntryMode) => set({ dataEntryMode }),
+      setBusinessData: (data) =>
+        set((state) => ({
+          businessData: { ...state.businessData, ...data },
+        })),
+      resetBusinessData: () =>
+        set({ businessData: { ...initialBusinessData }, dataSources: [] }),
+      setLoading: (isLoading) => set({ isLoading }),
+      setSaving: (isSaving) => set({ isSaving }),
+    }),
+    {
+      name: "optx-business-store",
+      storage: createJSONStorage(() => localStorage),
+      partialize: (state) => ({
+        businessData: state.businessData,
+        dataSources: state.dataSources,
+        dataEntryMode: state.dataEntryMode,
+      }),
+    }
+  )
+);

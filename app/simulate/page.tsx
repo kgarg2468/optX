@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Play,
   Wand2,
@@ -21,12 +21,75 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useScenarioStore } from "@/lib/store/scenario-store";
 import { useSimulationStore } from "@/lib/store/simulation-store";
+import { useBusinessStore } from "@/lib/store/business-store";
 import { ScenarioWizard } from "@/components/wizard/ScenarioWizard";
 
 export default function SimulatePage() {
-  const { viewMode, setViewMode, scenarios } = useScenarioStore();
-  const { config } = useSimulationStore();
+  const { viewMode, setViewMode, scenarios, setScenarios } = useScenarioStore();
+  const { businessData } = useBusinessStore();
+  const { config, setStatus, setResult, addPastResult, setError } =
+    useSimulationStore();
   const [wizardOpen, setWizardOpen] = useState(false);
+  const [isRunning, setIsRunning] = useState(false);
+
+  useEffect(() => {
+    if (!businessData.id) return;
+
+    const controller = new AbortController();
+    const loadScenarios = async () => {
+      try {
+        const res = await fetch(`/api/scenario?businessId=${businessData.id}`, {
+          signal: controller.signal,
+        });
+        const payload = await res.json();
+        if (!res.ok || !payload.success || !Array.isArray(payload.data)) return;
+        setScenarios(payload.data);
+      } catch {
+        // Use local persisted state when request fails
+      }
+    };
+
+    void loadScenarios();
+    return () => controller.abort();
+  }, [businessData.id, setScenarios]);
+
+  const handleRunSimulation = async () => {
+    if (!businessData.id) {
+      setError("Save business data before running simulations.");
+      setStatus("error");
+      return;
+    }
+
+    setIsRunning(true);
+    setError(null);
+    setStatus("preparing");
+    try {
+      const res = await fetch("/api/simulate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          businessId: businessData.id,
+          scenarioId: scenarios[0]?.id,
+          config,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        throw new Error(data.error || "Failed to run simulation");
+      }
+
+      if (data.result) {
+        setResult(data.result);
+        addPastResult(data.result);
+      }
+      setStatus(data.status ?? "complete");
+    } catch (error) {
+      setStatus("error");
+      setError(error instanceof Error ? error.message : "Simulation failed");
+    } finally {
+      setIsRunning(false);
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -37,9 +100,9 @@ export default function SimulatePage() {
             Build scenarios and run AI-powered simulations on your business data.
           </p>
         </div>
-        <Button>
+        <Button onClick={handleRunSimulation} disabled={isRunning}>
           <Play className="mr-2 h-4 w-4" />
-          Run Simulation
+          {isRunning ? "Running..." : "Run Simulation"}
         </Button>
       </div>
 

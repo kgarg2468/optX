@@ -5,11 +5,12 @@ import { ArrowLeft, Play, Save, MessageSquare, Settings2 } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { useScenarioStore } from "@/lib/store/scenario-store";
+import { useSimulationStore } from "@/lib/store/simulation-store";
 import { GraphEditor } from "@/components/graph/GraphEditor";
 import { NodePalette } from "@/components/graph/NodePalette";
 import { ConfigPanel } from "@/components/graph/ConfigPanel";
 import { ChatPanel } from "@/components/chat/ChatPanel";
-import { variablesToGraph } from "@/lib/utils/graph-sync";
+import { graphToVariables, variablesToGraph } from "@/lib/utils/graph-sync";
 import type { GraphNode, GraphState } from "@/lib/types";
 
 type RightPanel = "chat" | "config";
@@ -22,11 +23,15 @@ export default function ScenarioPage({
   const { id } = use(params);
   const {
     scenarios,
-    graphState,
+    getGraphState,
     setGraphState,
+    addScenario,
+    updateScenario,
     updateNode,
     removeNode,
   } = useScenarioStore();
+  const { config, setStatus, setResult, addPastResult, setError } =
+    useSimulationStore();
 
   const scenario = useMemo(
     () => scenarios.find((s) => s.id === id),
@@ -35,13 +40,49 @@ export default function ScenarioPage({
 
   const [rightPanel, setRightPanel] = useState<RightPanel>("chat");
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
+  const [isRunning, setIsRunning] = useState(false);
+
+  const graphState = getGraphState(id);
+
+  useEffect(() => {
+    if (scenario) return;
+
+    const controller = new AbortController();
+    const loadScenario = async () => {
+      try {
+        const res = await fetch(`/api/scenario?scenarioId=${id}`, {
+          signal: controller.signal,
+        });
+        const payload = await res.json();
+        if (!res.ok || !payload.success || !payload.data) return;
+        addScenario(payload.data);
+      } catch {
+        // Keep local state if request fails
+      }
+    };
+
+    void loadScenario();
+    return () => controller.abort();
+  }, [scenario, id, addScenario]);
 
   // Initialize graph from scenario variables if graph is empty
   useEffect(() => {
-    if (scenario && graphState.nodes.length === 0 && scenario.variables.length > 0) {
-      setGraphState(variablesToGraph(scenario.variables));
+    if (
+      scenario &&
+      graphState.nodes.length === 0 &&
+      graphState.edges.length === 0 &&
+      scenario.variables.length > 0
+    ) {
+      setGraphState(id, variablesToGraph(scenario.variables));
     }
-  }, [scenario, graphState.nodes.length, setGraphState]);
+  }, [
+    scenario,
+    graphState.nodes.length,
+    graphState.edges.length,
+    id,
+    setGraphState,
+  ]);
 
   const selectedNode = useMemo(
     () => graphState.nodes.find((n) => n.id === selectedNodeId) ?? null,
@@ -58,26 +99,118 @@ export default function ScenarioPage({
 
   const handleNodeUpdate = useCallback(
     (nodeId: string, updates: Partial<GraphNode>) => {
-      updateNode(nodeId, updates);
+      updateNode(id, nodeId, updates);
     },
-    [updateNode]
+    [id, updateNode]
   );
 
   const handleNodeDelete = useCallback(
     (nodeId: string) => {
-      removeNode(nodeId);
+      removeNode(id, nodeId);
       setSelectedNodeId(null);
       setRightPanel("chat");
     },
-    [removeNode]
+    [id, removeNode]
   );
 
   const handleGraphStateChange = useCallback(
     (state: GraphState) => {
-      setGraphState(state);
+      setGraphState(id, state);
     },
-    [setGraphState]
+    [id, setGraphState]
   );
+
+  const handleSaveScenario = useCallback(async () => {
+    if (!scenario) return false;
+    setIsSaving(true);
+    setError(null);
+    try {
+      const syncedVariables = graphToVariables(graphState, scenario.variables);
+      const payload = {
+        scenarioId: scenario.id,
+        businessId: scenario.businessId,
+        name: scenario.name,
+        description: scenario.description,
+        variables: syncedVariables,
+        graphState,
+      };
+
+      const res = await fetch("/api/scenario", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        throw new Error(data.error || "Failed to save scenario");
+      }
+
+      updateScenario(scenario.id, {
+        variables: syncedVariables,
+        graphState,
+        updatedAt: data.scenario?.updatedAt ?? new Date().toISOString(),
+      });
+      return true;
+    } catch (error) {
+      setError(error instanceof Error ? error.message : "Failed to save scenario");
+      return false;
+    } finally {
+      setIsSaving(false);
+    }
+  }, [scenario, graphState, setError, updateScenario]);
+
+  const handleRunScenario = useCallback(async () => {
+    if (!scenario?.businessId) {
+      setError("Save business data first before running a scenario simulation.");
+      return;
+    }
+
+    setIsRunning(true);
+    setStatus("preparing");
+    setError(null);
+
+    try {
+      const saved = await handleSaveScenario();
+      if (!saved) {
+        throw new Error("Failed to save scenario before running simulation");
+      }
+
+      const res = await fetch("/api/simulate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          businessId: scenario.businessId,
+          scenarioId: scenario.id,
+          config,
+        }),
+      });
+      const data = await res.json();
+
+      if (!res.ok || !data.success) {
+        throw new Error(data.error || "Failed to run simulation");
+      }
+
+      if (data.result) {
+        setResult(data.result);
+        addPastResult(data.result);
+      }
+      setStatus(data.status ?? "complete");
+    } catch (error) {
+      setStatus("error");
+      setError(error instanceof Error ? error.message : "Simulation failed");
+    } finally {
+      setIsRunning(false);
+    }
+  }, [
+    scenario,
+    config,
+    addPastResult,
+    handleSaveScenario,
+    setError,
+    setResult,
+    setStatus,
+  ]);
 
   return (
     <div className="flex h-[calc(100vh-3.5rem)] flex-col -m-6">
@@ -119,13 +252,22 @@ export default function ScenarioPage({
               <Settings2 className="h-4 w-4" />
             </Button>
           </div>
-          <Button variant="outline" size="sm">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleSaveScenario}
+            disabled={isSaving || !scenario}
+          >
             <Save className="mr-2 h-3.5 w-3.5" />
-            Save
+            {isSaving ? "Saving..." : "Save"}
           </Button>
-          <Button size="sm">
+          <Button
+            size="sm"
+            onClick={handleRunScenario}
+            disabled={isRunning || !scenario}
+          >
             <Play className="mr-2 h-3.5 w-3.5" />
-            Run
+            {isRunning ? "Running..." : "Run"}
           </Button>
         </div>
       </div>

@@ -67,6 +67,9 @@ export function ChatPanel({ scenarioId }: ChatPanelProps) {
         });
 
         const data = await res.json();
+        if (!res.ok || !data.success) {
+          throw new Error(data.error || "Chat request failed");
+        }
         const { updateLastAssistantMessage } = useChatStore.getState();
         updateLastAssistantMessage(
           data.reply || "Sorry, I couldn't generate a response."

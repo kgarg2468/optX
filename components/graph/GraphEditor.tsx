@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   ReactFlow,
   Background,
@@ -39,6 +39,11 @@ export function GraphEditor({
   const [edges, setEdges, onEdgesChange] = useEdgesState(
     (initialState?.edges ?? []) as unknown as Edge[]
   );
+
+  useEffect(() => {
+    setNodes((initialState?.nodes ?? []) as unknown as Node[]);
+    setEdges((initialState?.edges ?? []) as unknown as Edge[]);
+  }, [initialState, setNodes, setEdges]);
 
   const syncState = useCallback(
     (nextNodes: Node[], nextEdges: Edge[]) => {

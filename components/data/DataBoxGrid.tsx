@@ -237,9 +237,17 @@ function DataBoxCard({
 }
 
 export function DataBoxGrid() {
-  const { dataSources, addDataSource } = useBusinessStore();
+  const {
+    businessData,
+    dataSources,
+    addDataSource,
+    setBusinessData,
+    setDataSources,
+    setSaving,
+  } = useBusinessStore();
   const [selectedBox, setSelectedBox] = useState<DataBoxConfig | null>(null);
   const [nlpDescription, setNlpDescription] = useState("");
+  const [saveError, setSaveError] = useState<string | null>(null);
 
   const uploadedTypes = new Set(dataSources.map((s) => s.type));
 
@@ -248,6 +256,41 @@ export function DataBoxGrid() {
     { key: "contextual" as const, label: "Contextual Signals", description: "External factors that influence your business" },
     { key: "custom" as const, label: "Custom", description: "Any additional data with AI-powered extraction" },
   ];
+
+  const persistSources = async (nextSources: typeof dataSources) => {
+    setSaveError(null);
+    setSaving(true);
+    try {
+      const res = await fetch("/api/data", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          businessId: businessData.id,
+          businessData,
+          dataSources: nextSources,
+        }),
+      });
+      const payload = await res.json();
+      if (!res.ok || !payload.success) {
+        throw new Error(payload.error || "Failed to persist data source");
+      }
+
+      if (payload.business) {
+        setBusinessData(payload.business);
+      } else if (payload.businessId) {
+        setBusinessData({ id: payload.businessId });
+      }
+      if (payload.dataSources) {
+        setDataSources(payload.dataSources);
+      }
+    } catch (error) {
+      setSaveError(
+        error instanceof Error ? error.message : "Failed to save data source"
+      );
+    } finally {
+      setSaving(false);
+    }
+  };
 
   return (
     <div className="space-y-8">
@@ -262,6 +305,9 @@ export function DataBoxGrid() {
           {dataSources.length} / {dataBoxes.length} sources added
         </Badge>
       </div>
+      {saveError ? (
+        <p className="text-xs text-destructive">{saveError}</p>
+      ) : null}
 
       {tiers.map((tier) => {
         const boxes = dataBoxes.filter((b) => b.tier === tier.key);
@@ -304,9 +350,9 @@ export function DataBoxGrid() {
             <FileUploader
               onParsed={(data, fileName) => {
                 if (!selectedBox) return;
-                addDataSource({
+                const nextSource = {
                   id: crypto.randomUUID(),
-                  businessId: "",
+                  businessId: businessData.id || "",
                   type: selectedBox.type,
                   tier: selectedBox.tier,
                   label: selectedBox.label,
@@ -314,7 +360,10 @@ export function DataBoxGrid() {
                   fileName,
                   accuracyImpact: selectedBox.accuracyImpact,
                   uploadedAt: new Date().toISOString(),
-                });
+                };
+                addDataSource(nextSource);
+                void persistSources([...dataSources, nextSource]);
+                setSelectedBox(null);
               }}
             />
 
@@ -346,9 +395,9 @@ export function DataBoxGrid() {
                 disabled={!nlpDescription.trim()}
                 onClick={() => {
                   if (!selectedBox || !nlpDescription.trim()) return;
-                  addDataSource({
+                  const nextSource = {
                     id: crypto.randomUUID(),
-                    businessId: "",
+                    businessId: businessData.id || "",
                     type: selectedBox.type,
                     tier: selectedBox.tier,
                     label: selectedBox.label,
@@ -356,7 +405,9 @@ export function DataBoxGrid() {
                     nlpDescription,
                     accuracyImpact: selectedBox.accuracyImpact,
                     uploadedAt: new Date().toISOString(),
-                  });
+                  };
+                  addDataSource(nextSource);
+                  void persistSources([...dataSources, nextSource]);
                   setSelectedBox(null);
                 }}
               >

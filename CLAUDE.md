@@ -10,6 +10,7 @@ npm run dev          # Start dev server
 npm run build        # Production build (also runs TypeScript check)
 npm run lint         # ESLint with next/core-web-vitals + typescript rules
 npm start            # Serve production build
+npx shadcn@latest add <component>  # Add ShadCN component (style: new-york)
 
 # Python backend (FastAPI)
 cd python
@@ -17,7 +18,7 @@ pip install -r requirements.txt
 uvicorn main:app --reload --port 8000
 ```
 
-No test framework is configured yet.
+No test framework is configured yet. Both services must run simultaneously for full functionality.
 
 ## Architecture
 
@@ -28,7 +29,7 @@ No test framework is configured yet.
 Browser → Next.js API routes (app/api/) → Python FastAPI (python/main.py) → Anthropic Claude API
                                         → Simulation engines (python/engine/)
                                         → AI agents (python/agents/)
-Browser → Supabase (direct client via @supabase/supabase-js)
+Browser → Supabase (lib/supabase/client.ts — browser, lib/supabase/server.ts — SSR)
 ```
 
 ### Frontend State
@@ -52,7 +53,7 @@ All types are centralized in `lib/types/index.ts` (~350 lines). Key type hierarc
 
 ### Scenario System (Phase 4)
 - **Wizard** (`components/wizard/`) — 4-step dialog: Describe (with NLP parse) → Select Variables → Set Values → Review
-- **Graph Editor** (`components/graph/`) — React Flow canvas at `/scenario/[id]` with three-panel layout: NodePalette | Canvas | Chat/ConfigPanel
+- **Graph Editor** (`components/graph/`) — `@xyflow/react` canvas at `/scenario/[id]` with three-panel layout: NodePalette | Canvas | Chat/ConfigPanel
 - **Sync** — `lib/utils/graph-sync.ts` provides `variablesToGraph()` and `graphToVariables()` for bidirectional wizard↔graph conversion
 - **Node types** — 6 types (financial, market, brand, operations, logic, metric) configured in `lib/utils/node-config.ts`
 
@@ -73,7 +74,7 @@ Required in `.env.local`:
 - `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY` — Supabase client
 - `SUPABASE_SERVICE_ROLE_KEY` — server-side Supabase
 - `PYTHON_API_URL` — Python backend URL (default: `http://localhost:8000`)
-- `ANTHROPIC_API_KEY` — used by the Python service for Claude API calls
+- `ANTHROPIC_API_KEY` — used by the Python service for Claude API calls (also needs to be in `python/.env`)
 
 ## Database
 

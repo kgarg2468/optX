@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import {
   Building2,
   DollarSign,
@@ -126,19 +127,25 @@ function NLPToggleField({ label, placeholder, onExtract }: NLPFieldProps) {
 export function QuickStartForm() {
   const {
     businessData,
+    dataSources,
     setField,
     setIndustry,
     setSize,
     addExpense,
     removeExpense,
     updateExpense,
+    setBusinessData,
+    setDataSources,
+    setSaving,
     isSaving,
   } = useBusinessStore();
+  const router = useRouter();
 
   const [showOptional, setShowOptional] = useState(false);
   const [newExpenseName, setNewExpenseName] = useState("");
   const [newExpenseAmount, setNewExpenseAmount] = useState("");
   const [revenueInput, setRevenueInput] = useState("");
+  const [saveError, setSaveError] = useState<string | null>(null);
 
   const handleAddExpense = () => {
     if (!newExpenseName || !newExpenseAmount) return;
@@ -158,6 +165,44 @@ export function QuickStartForm() {
     const current = businessData.monthlyRevenue || [];
     setField("monthlyRevenue", [...current, parseFloat(revenueInput)]);
     setRevenueInput("");
+  };
+
+  const handleSave = async () => {
+    setSaveError(null);
+    setSaving(true);
+    try {
+      const res = await fetch("/api/data", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          businessId: businessData.id,
+          businessData,
+          dataSources,
+        }),
+      });
+      const payload = await res.json();
+      if (!res.ok || !payload.success) {
+        throw new Error(payload.error || "Failed to save business data");
+      }
+
+      if (payload.business) {
+        setBusinessData(payload.business);
+      } else if (payload.businessId) {
+        setBusinessData({ id: payload.businessId });
+      }
+
+      if (payload.dataSources) {
+        setDataSources(payload.dataSources);
+      }
+
+      router.push("/simulate");
+    } catch (error) {
+      setSaveError(
+        error instanceof Error ? error.message : "Failed to save business data"
+      );
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -565,10 +610,15 @@ export function QuickStartForm() {
 
       {/* Submit */}
       <div className="flex items-center justify-between">
-        <p className="text-xs text-muted-foreground">
-          Your data is used only for simulation and is never shared.
-        </p>
-        <Button size="lg" disabled={isSaving}>
+        <div>
+          <p className="text-xs text-muted-foreground">
+            Your data is used only for simulation and is never shared.
+          </p>
+          {saveError ? (
+            <p className="mt-1 text-xs text-destructive">{saveError}</p>
+          ) : null}
+        </div>
+        <Button size="lg" disabled={isSaving} onClick={handleSave}>
           <Save className="mr-2 h-4 w-4" />
           {isSaving ? "Saving..." : "Save & Continue"}
         </Button>

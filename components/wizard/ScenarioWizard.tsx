@@ -14,6 +14,8 @@ import { StepSelectVariables } from "./StepSelectVariables";
 import { StepSetValues } from "./StepSetValues";
 import { StepReview } from "./StepReview";
 import { useScenarioStore } from "@/lib/store/scenario-store";
+import { useBusinessStore } from "@/lib/store/business-store";
+import { variablesToGraph } from "@/lib/utils/graph-sync";
 import type { Scenario, ScenarioVariable } from "@/lib/types";
 
 interface ScenarioWizardProps {
@@ -26,14 +28,18 @@ export function ScenarioWizard({ open, onOpenChange }: ScenarioWizardProps) {
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [variables, setVariables] = useState<ScenarioVariable[]>([]);
+  const [isSaving, setIsSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
 
   const { addScenario } = useScenarioStore();
+  const { businessData } = useBusinessStore();
 
   const reset = useCallback(() => {
     setStep(0);
     setName("");
     setDescription("");
     setVariables([]);
+    setSaveError(null);
   }, []);
 
   const handleClose = useCallback(
@@ -68,19 +74,55 @@ export function ScenarioWizard({ open, onOpenChange }: ScenarioWizardProps) {
     setStep(1);
   }, []);
 
-  const handleSave = useCallback(() => {
+  const handleSave = useCallback(async () => {
+    if (!businessData.id) {
+      setSaveError("Save business data before creating scenarios.");
+      return;
+    }
+
+    setIsSaving(true);
+    setSaveError(null);
+
+    const graphState = variablesToGraph(variables);
     const scenario: Scenario = {
       id: crypto.randomUUID(),
-      businessId: "",
+      businessId: businessData.id,
       name: name || "Untitled Scenario",
       description,
       variables,
+      graphState,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     };
-    addScenario(scenario);
-    handleClose(false);
-  }, [name, description, variables, addScenario, handleClose]);
+
+    try {
+      const res = await fetch("/api/scenario", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          scenarioId: scenario.id,
+          businessId: scenario.businessId,
+          name: scenario.name,
+          description: scenario.description,
+          variables: scenario.variables,
+          graphState: scenario.graphState,
+        }),
+      });
+      const payload = await res.json();
+      if (!res.ok || !payload.success) {
+        throw new Error(payload.error || "Failed to create scenario");
+      }
+
+      addScenario(payload.scenario || scenario);
+      handleClose(false);
+    } catch (error) {
+      setSaveError(
+        error instanceof Error ? error.message : "Failed to create scenario"
+      );
+    } finally {
+      setIsSaving(false);
+    }
+  }, [businessData.id, name, description, variables, addScenario, handleClose]);
 
   const canNext = () => {
     switch (step) {
@@ -155,10 +197,15 @@ export function ScenarioWizard({ open, onOpenChange }: ScenarioWizardProps) {
                 Next
               </Button>
             ) : (
-              <Button onClick={handleSave}>Save Scenario</Button>
+              <Button onClick={handleSave} disabled={isSaving}>
+                {isSaving ? "Saving..." : "Save Scenario"}
+              </Button>
             )}
           </div>
         </div>
+        {saveError ? (
+          <p className="px-6 pb-4 text-xs text-destructive">{saveError}</p>
+        ) : null}
       </DialogContent>
     </Dialog>
   );

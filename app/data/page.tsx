@@ -1,13 +1,41 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { QuickStartForm } from "@/components/data/QuickStartForm";
 import { DataBoxGrid } from "@/components/data/DataBoxGrid";
 import { useBusinessStore } from "@/lib/store/business-store";
 
 export default function DataPage() {
-  const { dataEntryMode, setDataEntryMode } = useBusinessStore();
+  const {
+    businessData,
+    dataEntryMode,
+    setDataEntryMode,
+    setBusinessData,
+    setDataSources,
+  } = useBusinessStore();
+
+  useEffect(() => {
+    if (!businessData.id) return;
+
+    const controller = new AbortController();
+    const load = async () => {
+      try {
+        const res = await fetch(`/api/data?businessId=${businessData.id}`, {
+          signal: controller.signal,
+        });
+        const payload = await res.json();
+        if (!res.ok || !payload.success) return;
+        if (payload.business) setBusinessData(payload.business);
+        if (payload.dataSources) setDataSources(payload.dataSources);
+      } catch {
+        // best-effort hydration, keep local state if network fails
+      }
+    };
+
+    void load();
+    return () => controller.abort();
+  }, [businessData.id, setBusinessData, setDataSources]);
 
   return (
     <div className="space-y-6">

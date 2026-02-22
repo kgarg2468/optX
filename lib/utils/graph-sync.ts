@@ -11,7 +11,7 @@ const NODE_HEIGHT = 80;
 const GAP_X = 60;
 const GAP_Y = 40;
 
-function categoryToNodeType(category: string): GraphNodeType {
+function categoryToNodeType(category?: string): GraphNodeType {
   const map: Record<string, GraphNodeType> = {
     revenue: "financial",
     cost: "financial",
@@ -34,7 +34,7 @@ function categoryToNodeType(category: string): GraphNodeType {
     output: "metric",
     target: "metric",
   };
-  const lower = category.toLowerCase();
+  const lower = (category || "").toLowerCase();
   return map[lower] ?? "financial";
 }
 
@@ -43,16 +43,17 @@ export function variablesToGraph(variables: ScenarioVariable[]): GraphState {
   const nodes: GraphNode[] = variables.map((v, i) => {
     const col = i % GRID_COLS;
     const row = Math.floor(i / GRID_COLS);
+    const nodeType = categoryToNodeType(v.category);
     return {
       id: `node-${v.variableId}`,
-      type: categoryToNodeType(v.unit),
+      type: nodeType,
       position: {
         x: 80 + col * (NODE_WIDTH + GAP_X),
         y: 80 + row * (NODE_HEIGHT + GAP_Y),
       },
       data: {
         label: v.name,
-        type: categoryToNodeType(v.unit),
+        type: nodeType,
         variableId: v.variableId,
         value: v.modifiedValue,
         unit: v.unit,
