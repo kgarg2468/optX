@@ -6,7 +6,7 @@ Mathematical simulation engine and AI agent system.
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-from typing import Optional
+from typing import Optional, List
 import uuid
 import os
 import json
@@ -58,7 +58,7 @@ class ChatRequest(BaseModel):
     report_id: Optional[str] = None
     scenario_id: Optional[str] = None
     simulation_id: Optional[str] = None
-    history: list[dict] = []
+    history: List[dict] = []
 
 
 # --- Routes ---

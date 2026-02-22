@@ -3,12 +3,12 @@
 import { useState } from "react";
 import {
   Play,
-  GitBranch,
   Wand2,
   Network,
   Plus,
   ArrowRight,
 } from "lucide-react";
+import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -21,10 +21,12 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useScenarioStore } from "@/lib/store/scenario-store";
 import { useSimulationStore } from "@/lib/store/simulation-store";
+import { ScenarioWizard } from "@/components/wizard/ScenarioWizard";
 
 export default function SimulatePage() {
   const { viewMode, setViewMode, scenarios } = useScenarioStore();
-  const { status, config, setConfig } = useSimulationStore();
+  const { config } = useSimulationStore();
+  const [wizardOpen, setWizardOpen] = useState(false);
 
   return (
     <div className="space-y-6">
@@ -107,7 +109,7 @@ export default function SimulatePage() {
                 Build what-if scenarios step by step. Select variables to modify,
                 set new values, and see projected outcomes.
               </p>
-              <Button variant="outline">
+              <Button variant="outline" onClick={() => setWizardOpen(true)}>
                 <Plus className="mr-2 h-4 w-4" />
                 Create Scenario
               </Button>
@@ -122,10 +124,22 @@ export default function SimulatePage() {
               </div>
               <h3 className="font-semibold mb-1">Graph Editor</h3>
               <p className="text-sm text-muted-foreground max-w-md mb-4">
-                Drag-and-drop canvas for building complex scenario graphs. Define
-                variable relationships and data flows visually.
+                Create a scenario first, then open it to use the drag-and-drop
+                graph editor with variable nodes and causal edges.
               </p>
-              <Badge variant="secondary">Coming in Phase 4</Badge>
+              {scenarios.length > 0 ? (
+                <Button variant="outline" asChild>
+                  <Link href={`/scenario/${scenarios[0].id}`}>
+                    <Network className="mr-2 h-4 w-4" />
+                    Open Graph Editor
+                  </Link>
+                </Button>
+              ) : (
+                <Button variant="outline" onClick={() => setWizardOpen(true)}>
+                  <Plus className="mr-2 h-4 w-4" />
+                  Create Scenario First
+                </Button>
+              )}
             </CardContent>
           </Card>
         </TabsContent>
@@ -141,7 +155,11 @@ export default function SimulatePage() {
                 Your saved what-if scenarios
               </CardDescription>
             </div>
-            <Button variant="outline" size="sm">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setWizardOpen(true)}
+            >
               <Plus className="mr-2 h-3 w-3" />
               New Scenario
             </Button>
@@ -157,9 +175,10 @@ export default function SimulatePage() {
           ) : (
             <div className="space-y-2">
               {scenarios.map((scenario) => (
-                <div
+                <Link
                   key={scenario.id}
-                  className="flex items-center justify-between rounded-lg border border-border p-3"
+                  href={`/scenario/${scenario.id}`}
+                  className="flex items-center justify-between rounded-lg border border-border p-3 transition-colors hover:bg-accent/50"
                 >
                   <div>
                     <p className="text-sm font-medium">{scenario.name}</p>
@@ -168,15 +187,20 @@ export default function SimulatePage() {
                       {scenario.variables.length !== 1 ? "s" : ""} modified
                     </p>
                   </div>
-                  <Button variant="ghost" size="sm">
-                    <ArrowRight className="h-3 w-3" />
-                  </Button>
-                </div>
+                  <div className="flex items-center gap-2">
+                    <Badge variant="secondary" className="text-[10px]">
+                      {new Date(scenario.createdAt).toLocaleDateString()}
+                    </Badge>
+                    <ArrowRight className="h-3 w-3 text-muted-foreground" />
+                  </div>
+                </Link>
               ))}
             </div>
           )}
         </CardContent>
       </Card>
+
+      <ScenarioWizard open={wizardOpen} onOpenChange={setWizardOpen} />
     </div>
   );
 }

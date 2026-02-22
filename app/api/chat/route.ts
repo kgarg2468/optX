@@ -6,7 +6,7 @@ const PYTHON_API_URL = process.env.PYTHON_API_URL || "http://localhost:8000";
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { message, reportId, scenarioId, simulationId, history } = body;
+    const { message, mode, reportId, scenarioId, simulationId, history } = body;
 
     // Call Python service which has access to Claude API and simulation context
     const response = await fetch(`${PYTHON_API_URL}/chat`, {
@@ -14,10 +14,11 @@ export async function POST(request: NextRequest) {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         message,
-        reportId,
-        scenarioId,
-        simulationId,
-        history,
+        mode,
+        report_id: reportId,
+        scenario_id: scenarioId,
+        simulation_id: simulationId,
+        history: history || [],
       }),
     });
 
@@ -30,6 +31,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       success: true,
       reply: result.reply,
+      parsed: result.parsed ?? null,
     });
   } catch (error) {
     return NextResponse.json(
