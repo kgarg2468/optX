@@ -8,6 +8,14 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import Optional
 import uuid
+import os
+import json
+from dotenv import load_dotenv
+from anthropic import Anthropic
+
+load_dotenv()
+
+anthropic_client = Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY", ""))
 
 app = FastAPI(
     title="OptX Engine",
@@ -46,6 +54,7 @@ class AgentAnalyzeRequest(BaseModel):
 
 class ChatRequest(BaseModel):
     message: str
+    mode: Optional[str] = None  # "parse_scenario" or None for general chat
     report_id: Optional[str] = None
     scenario_id: Optional[str] = None
     simulation_id: Optional[str] = None
