@@ -48,6 +48,7 @@ class BacktestEngine:
 
         results = []
         errors = []
+        ensemble_predictions: list[list[float]] = []
 
         for t in range(window_size, len(historical_data) - step_size + 1, step_size):
             train_data = historical_data[:t]
@@ -57,8 +58,11 @@ class BacktestEngine:
             predicted = prediction_func(train_data)
             if isinstance(predicted, (int, float)):
                 predicted = [predicted]
+            predicted_values = [float(v) for v in predicted]
+            if predicted_values:
+                ensemble_predictions.append(predicted_values)
 
-            for i, (pred, act) in enumerate(zip(predicted, actual)):
+            for i, (pred, act) in enumerate(zip(predicted_values, actual)):
                 error = abs(pred - act) / abs(act) if act != 0 else abs(pred)
                 errors.append(error)
                 results.append(
@@ -80,12 +84,13 @@ class BacktestEngine:
 
         # Calibration data (binned predicted vs actual)
         calibration_data = self._compute_calibration(results)
+        ensemble_disagreement = self.compute_ensemble_disagreement(ensemble_predictions)
 
         return BacktestResult(
             accuracy=accuracy,
             mean_squared_relative_error=mean_squared_relative_error,
             calibration_data=calibration_data,
-            ensemble_disagreement=0.0,
+            ensemble_disagreement=ensemble_disagreement,
             walk_forward_results=results,
             metadata={},
         )
@@ -130,7 +135,11 @@ class BacktestEngine:
         if len(predictions) < 2:
             return 0.0
 
-        arr = np.array(predictions)
+        min_horizon = min(len(p) for p in predictions)
+        if min_horizon == 0:
+            return 0.0
+
+        arr = np.array([p[:min_horizon] for p in predictions], dtype=float)
         # Coefficient of variation across ensemble members
         mean_pred = np.mean(arr, axis=0)
         std_pred = np.std(arr, axis=0)

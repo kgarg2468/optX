@@ -10,8 +10,19 @@ from __future__ import annotations
 from dataclasses import dataclass
 import numpy as np
 from scipy import stats
-from typing import Optional
 from .variable_universe import VariableUniverse, Variable
+
+
+@dataclass
+class MonthProjection:
+    month: int
+    mean: float
+    std: float
+    p5: float
+    p25: float
+    p50: float
+    p75: float
+    p95: float
 
 
 @dataclass
@@ -21,8 +32,8 @@ class MonteCarloResult:
     median: float
     std: float
     percentiles: dict[str, float]
-    distribution: list[float]
-    time_series_projection: list[list[float]]
+    time_series_projection: list[MonthProjection]
+    raw_samples: list[float] | None = None
 
 
 class MonteCarloEngine:
@@ -123,7 +134,11 @@ class MonteCarloEngine:
 
         return var.distribution.sample(len(u))
 
-    def run(self, time_horizon_months: int = 12) -> list[MonteCarloResult]:
+    def run(
+        self,
+        time_horizon_months: int = 12,
+        include_raw_samples: bool = False,
+    ) -> list[MonteCarloResult]:
         """Run Monte Carlo simulation across all variables."""
         variables = list(self.universe.variables.values())
         n_vars = len(variables)
@@ -155,7 +170,7 @@ class MonteCarloEngine:
                 samples = samples + noise
 
             # Time series projection
-            ts_projection = []
+            ts_projection: list[MonthProjection] = []
             for month in range(time_horizon_months):
                 # Simple random walk with drift from distribution
                 if use_independent_sampling:
@@ -168,7 +183,18 @@ class MonteCarloEngine:
                 if var.confidence < 1.0:
                     month_noise = np.random.normal(0, noise_scale, self.iterations)
                     month_samples = month_samples + month_noise
-                ts_projection.append(month_samples.tolist())
+                ts_projection.append(
+                    MonthProjection(
+                        month=month + 1,
+                        mean=float(np.mean(month_samples)),
+                        std=float(np.std(month_samples)),
+                        p5=float(np.percentile(month_samples, 5)),
+                        p25=float(np.percentile(month_samples, 25)),
+                        p50=float(np.percentile(month_samples, 50)),
+                        p75=float(np.percentile(month_samples, 75)),
+                        p95=float(np.percentile(month_samples, 95)),
+                    )
+                )
 
             # Compute statistics
             percentiles = {
@@ -186,8 +212,8 @@ class MonteCarloEngine:
                     median=float(np.median(samples)),
                     std=float(np.std(samples)),
                     percentiles=percentiles,
-                    distribution=samples.tolist(),
                     time_series_projection=ts_projection,
+                    raw_samples=samples.tolist() if include_raw_samples else None,
                 )
             )
 

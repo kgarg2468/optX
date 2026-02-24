@@ -75,6 +75,7 @@ class SimulationConfig(BaseModel):
     iterations: int = 10000
     time_horizon_months: int = Field(default=12, alias="timeHorizonMonths")
     confidence_level: float = Field(default=0.95, alias="confidenceLevel")
+    include_raw_samples: bool = Field(default=False, alias="includeRawSamples")
 
 
 class SimulateRequest(BaseModel):
@@ -264,8 +265,13 @@ async def run_simulation(
 
         monte_engine = MonteCarloEngine(universe, iterations=request.config.iterations)
         monte_results = monte_engine.run(
-            time_horizon_months=request.config.time_horizon_months
+            time_horizon_months=request.config.time_horizon_months,
+            include_raw_samples=request.config.include_raw_samples,
         )
+        monte_payload = [asdict(result) for result in monte_results]
+        if not request.config.include_raw_samples:
+            for result in monte_payload:
+                result.pop("raw_samples", None)
 
         bayesian_engine = BayesianEngine()
         bayesian_engine.build_default_structure(universe.variables)
@@ -324,7 +330,7 @@ async def run_simulation(
         return {
             "simulation_id": simulation_id,
             "status": "complete",
-            "monte_carlo": [asdict(result) for result in monte_results],
+            "monte_carlo": monte_payload,
             "bayesian_network": bayesian_payload,
             "sensitivity": [asdict(result) for result in sensitivity_result],
             "backtest": asdict(backtest_result),

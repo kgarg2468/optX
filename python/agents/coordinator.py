@@ -57,6 +57,12 @@ class AgentCoordinator:
         }
         self.max_debate_rounds = 3
         self.convergence_threshold = 0.8
+        self._api_semaphore = asyncio.Semaphore(4)
+
+    async def _run_with_semaphore(self, fn, *args):
+        async with self._api_semaphore:
+            loop = asyncio.get_running_loop()
+            return await loop.run_in_executor(None, fn, *args)
 
     async def run(
         self, business_data: dict, simulation_data: dict
@@ -89,11 +95,9 @@ class AgentCoordinator:
         self, business_data: dict, simulation_data: dict
     ) -> list[AgentAnalysis]:
         """Run all 6 agents in parallel."""
-        loop = asyncio.get_running_loop()
-
         tasks = [
-            loop.run_in_executor(
-                None, agent.analyze, business_data, simulation_data
+            self._run_with_semaphore(
+                agent.analyze, business_data, simulation_data
             )
             for agent in self.agents.values()
         ]
@@ -144,25 +148,40 @@ class AgentCoordinator:
 
         for round_num in range(1, self.max_debate_rounds + 1):
             critiques = []
-            loop = asyncio.get_running_loop()
+            critique_futures = []
+            critique_metadata: list[tuple[str, str]] = []
 
             for from_type, to_type in critique_pairs:
                 from_agent = self.agents.get(from_type)
                 to_analysis = analysis_map.get(to_type)
 
                 if from_agent and to_analysis:
-                    critique_text = await loop.run_in_executor(
-                        None, from_agent.critique, to_analysis, business_data
-                    )
-
-                    critiques.append(
-                        DebateCritique(
-                            from_agent=from_type,
-                            to_agent=to_type,
-                            critique=critique_text,
-                            response="",  # Response incorporated in next round
+                    critique_futures.append(
+                        self._run_with_semaphore(
+                            from_agent.critique,
+                            to_analysis,
+                            business_data,
                         )
                     )
+                    critique_metadata.append((from_type, to_type))
+
+            critique_results = await asyncio.gather(
+                *critique_futures, return_exceptions=True
+            )
+            for (from_type, to_type), result in zip(
+                critique_metadata, critique_results
+            ):
+                critique_text = (
+                    str(result) if isinstance(result, Exception) else result
+                )
+                critiques.append(
+                    DebateCritique(
+                        from_agent=from_type,
+                        to_agent=to_type,
+                        critique=critique_text,
+                        response="",  # Response incorporated in next round
+                    )
+                )
 
             debate_rounds.append(
                 DebateRound(round=round_num, critiques=critiques)

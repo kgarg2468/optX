@@ -1,4 +1,4 @@
-"""GARCH Volatility Modeling
+"""GARCH Volatility Modeling (EXPERIMENTAL — not yet integrated into simulation pipeline)
 
 Models volatility clustering in financial time series.
 Captures periods of high/low volatility for more realistic simulations.

@@ -36,6 +36,8 @@ class SensitivityEngine:
         bounds: list of (min, max) for each variable
         """
         n_vars = len(variable_names)
+        if n_vars > 50:
+            n_samples = min(n_samples, 256)
 
         # Saltelli sampling: generate two independent matrices
         A = np.random.uniform(size=(n_samples, n_vars))
@@ -127,6 +129,7 @@ class SensitivityEngine:
                 x_pert = x_scaled.copy()
                 step = delta * (bounds[i][1] - bounds[i][0])
                 x_pert[i] += step
+                x_pert[i] = float(np.clip(x_pert[i], bounds[i][0], bounds[i][1]))
                 y_pert = model_func(x_pert)
                 ee = (y_pert - y_base) / step if step != 0 else 0
                 elementary_effects[i].append(ee)
