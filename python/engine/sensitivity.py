@@ -51,7 +51,7 @@ class SensitivityEngine:
         y_B = np.array([model_func(row) for row in B])
 
         total_variance = np.var(np.concatenate([y_A, y_B]))
-        if total_variance == 0:
+        if total_variance < 1e-12:
             return [
                 SensitivityResult(
                     variable=name,

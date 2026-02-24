@@ -8,10 +8,17 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
+import logging
 from typing import Optional
 import os
 
 import anthropic
+
+logger = logging.getLogger(__name__)
+
+
+class AIServiceError(Exception):
+    """Raised when an external AI service call fails."""
 
 
 @dataclass
@@ -37,8 +44,9 @@ class BaseAgent(ABC):
     def __init__(self, agent_type: str, system_prompt: str):
         self.agent_type = agent_type
         self.system_prompt = system_prompt
+        self.api_key = os.getenv("ANTHROPIC_API_KEY", "")
         self.client = anthropic.Anthropic(
-            api_key=os.environ.get("ANTHROPIC_API_KEY", "")
+            api_key=self.api_key
         )
         self.model = "claude-sonnet-4-20250514"
 
@@ -57,16 +65,28 @@ class BaseAgent(ABC):
     def _call_claude(self, prompt: str, max_tokens: int = 4096) -> str:
         """Call Claude API with the agent's system prompt."""
         if not self.client.api_key:
+            logger.warning(
+                "ANTHROPIC_API_KEY not configured for %s agent; returning stub response.",
+                self.agent_type,
+            )
             return f"[{self.agent_type} agent]: API key not configured. Stub response."
 
-        message = self.client.messages.create(
-            model=self.model,
-            max_tokens=max_tokens,
-            system=self.system_prompt,
-            messages=[{"role": "user", "content": prompt}],
-        )
-
-        return message.content[0].text
+        try:
+            message = self.client.messages.create(
+                model=self.model,
+                max_tokens=max_tokens,
+                system=self.system_prompt,
+                messages=[{"role": "user", "content": prompt}],
+            )
+            return message.content[0].text
+        except Exception as exc:
+            logger.error(
+                "AI call failed for %s agent: %s",
+                self.agent_type,
+                exc,
+                exc_info=True,
+            )
+            raise AIServiceError("AI service temporarily unavailable") from exc
 
     def _build_data_context(self, business_data: dict, simulation_data: dict) -> str:
         """Build a context string from business and simulation data."""

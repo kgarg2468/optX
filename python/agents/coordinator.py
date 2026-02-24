@@ -89,7 +89,7 @@ class AgentCoordinator:
         self, business_data: dict, simulation_data: dict
     ) -> list[AgentAnalysis]:
         """Run all 6 agents in parallel."""
-        loop = asyncio.get_event_loop()
+        loop = asyncio.get_running_loop()
 
         tasks = [
             loop.run_in_executor(
@@ -144,7 +144,7 @@ class AgentCoordinator:
 
         for round_num in range(1, self.max_debate_rounds + 1):
             critiques = []
-            loop = asyncio.get_event_loop()
+            loop = asyncio.get_running_loop()
 
             for from_type, to_type in critique_pairs:
                 from_agent = self.agents.get(from_type)
@@ -180,6 +180,8 @@ class AgentCoordinator:
         Simple heuristic: fewer new critiques in later rounds = convergence.
         """
         if len(debate_rounds) < 2:
+            return 0.0
+        if all(c.critique == "" for dr in debate_rounds for c in dr.critiques):
             return 0.0
 
         # Compare critique lengths between rounds

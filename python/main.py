@@ -8,13 +8,16 @@ from __future__ import annotations
 from dataclasses import asdict
 from typing import Any, Optional, List
 import json
+import logging
 import os
 import uuid
+import warnings
 
 from anthropic import Anthropic
 from dotenv import load_dotenv
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Depends, Security
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from pydantic import BaseModel, ConfigDict, Field
 
 from engine.variable_universe import VariableUniverse, Variable
@@ -26,7 +29,19 @@ from agents.coordinator import AgentCoordinator
 
 load_dotenv()
 
-anthropic_client = Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY", ""))
+logger = logging.getLogger(__name__)
+
+ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY")
+if not ANTHROPIC_API_KEY:
+    warnings.warn(
+        "ANTHROPIC_API_KEY not set — AI features will return stub responses",
+        RuntimeWarning,
+        stacklevel=2,
+    )
+API_AUTH_TOKEN = os.getenv("OPTX_API_TOKEN")
+
+anthropic_client = Anthropic(api_key=ANTHROPIC_API_KEY or "")
+security = HTTPBearer(auto_error=False)
 
 app = FastAPI(
     title="OptX Engine",
@@ -46,8 +61,8 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=allowed_origins,
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST", "OPTIONS"],
+    allow_headers=["Content-Type", "Authorization"],
 )
 
 
@@ -94,7 +109,20 @@ class ChatRequest(BaseModel):
     history: List[dict[str, Any]] = Field(default_factory=list)
 
 
+class ExtractVariablesRequest(BaseModel):
+    rows: list[dict[str, Any]] = Field(default_factory=list, max_length=10000)
+
+
 # --- Helpers ---
+
+
+async def verify_token(
+    credentials: HTTPAuthorizationCredentials | None = Security(security),
+) -> None:
+    if not API_AUTH_TOKEN:
+        return
+    if not credentials or credentials.credentials != API_AUTH_TOKEN:
+        raise HTTPException(status_code=401, detail="Unauthorized")
 
 
 def _normalize_business_data(payload: dict[str, Any]) -> dict[str, Any]:
@@ -220,92 +248,115 @@ async def health():
 
 
 @app.post("/simulate")
-async def run_simulation(request: SimulateRequest):
+async def run_simulation(
+    request: SimulateRequest,
+    _: None = Depends(verify_token),
+):
     """Run the 5-layer simulation pipeline."""
-    simulation_id = str(uuid.uuid4())
+    try:
+        simulation_id = str(uuid.uuid4())
 
-    business_data = _normalize_business_data(request.business_data)
+        business_data = _normalize_business_data(request.business_data)
 
-    universe = VariableUniverse()
-    universe.from_business_data(business_data)
-    _apply_scenario_overrides(universe, request.scenario_variables)
+        universe = VariableUniverse()
+        universe.from_business_data(business_data)
+        _apply_scenario_overrides(universe, request.scenario_variables)
 
-    monte_engine = MonteCarloEngine(universe, iterations=request.config.iterations)
-    monte_results = monte_engine.run(
-        time_horizon_months=request.config.time_horizon_months
-    )
-
-    bayesian_engine = BayesianEngine()
-    bayesian_engine.build_default_structure(universe.variables)
-    bayesian_result = bayesian_engine.infer()
-    bayesian_payload = asdict(bayesian_result)
-    bayesian_payload["edges"] = [
-        {
-            "from": edge["from_var"],
-            "to": edge["to_var"],
-            "strength": edge["strength"],
-            "description": edge["description"],
-        }
-        for edge in bayesian_payload.get("edges", [])
-    ]
-
-    sensitivity_engine = SensitivityEngine()
-    variable_names, bounds = _build_sensitivity_bounds(universe)
-
-    if variable_names:
-        def model_func(values):
-            if len(values) == 0:
-                return 0.0
-            revenue = float(values[0])
-            if len(values) == 1:
-                return revenue
-            expenses = float(sum(float(v) for v in values[1:]))
-            return revenue - expenses
-
-        sensitivity_result = sensitivity_engine.sobol_analysis(
-            model_func=model_func,
-            variable_names=variable_names,
-            bounds=bounds,
-            n_samples=min(max(request.config.iterations // 10, 128), 1024),
+        monte_engine = MonteCarloEngine(universe, iterations=request.config.iterations)
+        monte_results = monte_engine.run(
+            time_horizon_months=request.config.time_horizon_months
         )
-    else:
-        sensitivity_result = []
 
-    backtest_engine = BacktestEngine()
-    historical = _build_backtest_history(business_data)
+        bayesian_engine = BayesianEngine()
+        bayesian_engine.build_default_structure(universe.variables)
+        bayesian_result = bayesian_engine.infer()
+        bayesian_payload = asdict(bayesian_result)
+        bayesian_payload["edges"] = [
+            {
+                "from": edge["from_var"],
+                "to": edge["to_var"],
+                "strength": edge["strength"],
+                "description": edge["description"],
+            }
+            for edge in bayesian_payload.get("edges", [])
+        ]
 
-    # Baseline predictor: trailing mean of the observed training history.
-    def prediction_func(train_data: list[float]):
-        if not train_data:
-            return [0.0]
-        return [sum(train_data) / len(train_data)]
+        sensitivity_engine = SensitivityEngine()
+        variable_names, bounds = _build_sensitivity_bounds(universe)
 
-    backtest_result = backtest_engine.walk_forward_validation(
-        historical_data=historical,
-        prediction_func=prediction_func,
-        window_size=min(6, max(len(historical) - 1, 1)),
-        step_size=1,
-    )
-    backtest_result.metadata["predictor"] = "trailing_mean_baseline"
+        if variable_names:
 
-    return {
-        "simulation_id": simulation_id,
-        "status": "complete",
-        "monte_carlo": [asdict(result) for result in monte_results],
-        "bayesian_network": bayesian_payload,
-        "sensitivity": [asdict(result) for result in sensitivity_result],
-        "backtest": asdict(backtest_result),
-    }
+            def model_func(values):
+                if len(values) == 0:
+                    return 0.0
+                revenue = float(values[0])
+                if len(values) == 1:
+                    return revenue
+                expenses = float(sum(float(v) for v in values[1:]))
+                return revenue - expenses
+
+            sensitivity_result = sensitivity_engine.sobol_analysis(
+                model_func=model_func,
+                variable_names=variable_names,
+                bounds=bounds,
+                n_samples=min(max(request.config.iterations // 10, 128), 1024),
+            )
+        else:
+            sensitivity_result = []
+
+        backtest_engine = BacktestEngine()
+        historical = _build_backtest_history(business_data)
+
+        # Baseline predictor: trailing mean of the observed training history.
+        def prediction_func(train_data: list[float]):
+            if not train_data:
+                return [0.0]
+            return [sum(train_data) / len(train_data)]
+
+        backtest_result = backtest_engine.walk_forward_validation(
+            historical_data=historical,
+            prediction_func=prediction_func,
+            window_size=min(6, max(len(historical) - 1, 1)),
+            step_size=1,
+        )
+        backtest_result.metadata["predictor"] = "trailing_mean_baseline"
+
+        return {
+            "simulation_id": simulation_id,
+            "status": "complete",
+            "monte_carlo": [asdict(result) for result in monte_results],
+            "bayesian_network": bayesian_payload,
+            "sensitivity": [asdict(result) for result in sensitivity_result],
+            "backtest": asdict(backtest_result),
+        }
+    except HTTPException:
+        raise
+    except Exception as exc:
+        logger.error("Simulation pipeline error: %s", exc, exc_info=True)
+        raise HTTPException(
+            status_code=500,
+            detail="Simulation failed — check server logs",
+        )
 
 
 @app.post("/agents/analyze")
-async def run_agent_analysis(request: AgentAnalyzeRequest):
+async def run_agent_analysis(
+    request: AgentAnalyzeRequest,
+    _: None = Depends(verify_token),
+):
     """Run 6-agent parallel analysis with debate rounds."""
-
-    coordinator = AgentCoordinator()
-    output = await coordinator.run(request.business_data, request.simulation_data)
-
-    return asdict(output)
+    try:
+        coordinator = AgentCoordinator()
+        output = await coordinator.run(request.business_data, request.simulation_data)
+        return asdict(output)
+    except HTTPException:
+        raise
+    except Exception as exc:
+        logger.error("Agent analysis pipeline error: %s", exc, exc_info=True)
+        raise HTTPException(
+            status_code=500,
+            detail="Agent analysis failed — check server logs",
+        )
 
 
 PARSE_SCENARIO_SYSTEM = """You are a business scenario parser for OptX. The user describes a business what-if scenario in natural language.
@@ -341,7 +392,10 @@ Be concise and specific. Reference numbers and data when possible. If discussing
 
 
 @app.post("/chat")
-async def chat(request: ChatRequest):
+async def chat(
+    request: ChatRequest,
+    _: None = Depends(verify_token),
+):
     """AI chat with report context or scenario parsing."""
 
     if request.mode == "parse_scenario":
@@ -382,16 +436,20 @@ async def chat(request: ChatRequest):
         return {"reply": reply}
 
     except Exception as exc:
-        raise HTTPException(status_code=502, detail=f"AI service error: {exc}")
+        logger.error("Chat AI error: %s", exc, exc_info=True)
+        raise HTTPException(status_code=502, detail="AI service temporarily unavailable")
 
 
 @app.post("/extract-variables")
-async def extract_variables(data: dict):
+async def extract_variables(
+    data: ExtractVariablesRequest,
+    _: None = Depends(verify_token),
+):
     """Extract variables from uploaded data or NLP description."""
 
     variables = []
 
-    rows = data.get("rows", [])
+    rows = data.rows
     if isinstance(rows, list) and rows:
         sample = rows[0]
         if isinstance(sample, dict):
