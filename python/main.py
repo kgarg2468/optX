@@ -121,13 +121,25 @@ def _apply_scenario_overrides(
         return
 
     for variable in scenario_variables:
-        variable_id = variable.get("variableId") or variable.get("variable_id")
+        variable_id = variable.get("variableId")
+        if variable_id is None:
+            variable_id = variable.get("variable_id")
         name = variable.get("name")
-        modified_value = variable.get("modifiedValue") or variable.get("modified_value")
+        modified_value = variable.get("modifiedValue")
+        if modified_value is None:
+            modified_value = variable.get("modified_value")
         unit = variable.get("unit", "")
 
-        if variable_id and f"node-{variable_id}" in universe.variables:
-            continue
+        if variable_id is not None:
+            normalized_id = str(variable_id)
+            candidate_ids = {normalized_id}
+            if normalized_id.startswith("node-"):
+                candidate_ids.add(normalized_id[len("node-") :])
+            else:
+                candidate_ids.add(f"node-{normalized_id}")
+
+            if any(candidate_id in universe.variables for candidate_id in candidate_ids):
+                continue
 
         if not name or modified_value is None:
             continue
@@ -155,7 +167,7 @@ def _build_sensitivity_bounds(universe: VariableUniverse) -> tuple[list[str], li
 
     for variable in universe.variables.values():
         base = float(variable.value)
-        span = max(abs(base) * 0.2, 1.0)
+        span = max(abs(base) * 0.2, abs(base) * 0.01 + 0.01)
         names.append(variable.name)
         bounds.append((base - span, base + span))
 
@@ -165,6 +177,38 @@ def _build_sensitivity_bounds(universe: VariableUniverse) -> tuple[list[str], li
 def _build_backtest_history(business_data: dict[str, Any]) -> list[float]:
     revenue = business_data.get("monthly_revenue", [])
     return [float(v) for v in revenue if isinstance(v, (int, float))]
+
+
+def _infer_variable_category(column_name: str) -> str:
+    normalized = column_name.strip().lower()
+
+    financial_terms = (
+        "revenue",
+        "cost",
+        "price",
+        "margin",
+        "profit",
+        "expense",
+        "income",
+        "debt",
+        "cash",
+    )
+    operations_terms = (
+        "count",
+        "quantity",
+        "units",
+        "volume",
+        "inventory",
+        "capacity",
+        "headcount",
+        "staff",
+    )
+
+    if any(term in normalized for term in financial_terms):
+        return "financial"
+    if any(term in normalized for term in operations_terms):
+        return "operations"
+    return "general"
 
 
 # --- Routes ---
@@ -192,7 +236,7 @@ async def run_simulation(request: SimulateRequest):
     )
 
     bayesian_engine = BayesianEngine()
-    bayesian_engine.build_default_structure(list(universe.variables.keys()))
+    bayesian_engine.build_default_structure(universe.variables)
     bayesian_result = bayesian_engine.infer()
     bayesian_payload = asdict(bayesian_result)
     bayesian_payload["edges"] = [
@@ -210,7 +254,13 @@ async def run_simulation(request: SimulateRequest):
 
     if variable_names:
         def model_func(values):
-            return float(sum(values))
+            if len(values) == 0:
+                return 0.0
+            revenue = float(values[0])
+            if len(values) == 1:
+                return revenue
+            expenses = float(sum(float(v) for v in values[1:]))
+            return revenue - expenses
 
         sensitivity_result = sensitivity_engine.sobol_analysis(
             model_func=model_func,
@@ -224,6 +274,7 @@ async def run_simulation(request: SimulateRequest):
     backtest_engine = BacktestEngine()
     historical = _build_backtest_history(business_data)
 
+    # Baseline predictor: trailing mean of the observed training history.
     def prediction_func(train_data: list[float]):
         if not train_data:
             return [0.0]
@@ -235,6 +286,7 @@ async def run_simulation(request: SimulateRequest):
         window_size=min(6, max(len(historical) - 1, 1)),
         step_size=1,
     )
+    backtest_result.metadata["predictor"] = "trailing_mean_baseline"
 
     return {
         "simulation_id": simulation_id,
@@ -349,7 +401,7 @@ async def extract_variables(data: dict):
                         {
                             "name": key,
                             "displayName": key.replace("_", " ").title(),
-                            "category": "financial",
+                            "category": _infer_variable_category(key),
                             "unit": "units",
                             "confidence": 0.5,
                         }

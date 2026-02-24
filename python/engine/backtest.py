@@ -14,10 +14,11 @@ from typing import Optional
 @dataclass
 class BacktestResult:
     accuracy: float
-    brier_score: float
+    mean_squared_relative_error: float
     calibration_data: list[dict]
     ensemble_disagreement: float
     walk_forward_results: list[dict]
+    metadata: dict[str, str]
 
 
 class BacktestEngine:
@@ -38,10 +39,11 @@ class BacktestEngine:
         if len(historical_data) < window_size + step_size:
             return BacktestResult(
                 accuracy=0.0,
-                brier_score=1.0,
+                mean_squared_relative_error=1.0,
                 calibration_data=[],
                 ensemble_disagreement=0.0,
                 walk_forward_results=[],
+                metadata={},
             )
 
         results = []
@@ -71,18 +73,21 @@ class BacktestEngine:
         mape = float(np.mean(errors)) if errors else 1.0
         accuracy = max(0, 1 - mape)
 
-        # Brier score (for probabilistic calibration)
-        brier_score = float(np.mean(np.array(errors) ** 2)) if errors else 1.0
+        # Mean squared relative error
+        mean_squared_relative_error = (
+            float(np.mean(np.array(errors) ** 2)) if errors else 1.0
+        )
 
         # Calibration data (binned predicted vs actual)
         calibration_data = self._compute_calibration(results)
 
         return BacktestResult(
             accuracy=accuracy,
-            brier_score=brier_score,
+            mean_squared_relative_error=mean_squared_relative_error,
             calibration_data=calibration_data,
             ensemble_disagreement=0.0,
             walk_forward_results=results,
+            metadata={},
         )
 
     def _compute_calibration(

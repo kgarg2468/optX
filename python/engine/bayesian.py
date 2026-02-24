@@ -56,7 +56,24 @@ class BayesianEngine:
             )
         )
 
-    def build_default_structure(self, variable_names: list[str]) -> None:
+    def _normalize_name(self, value: str) -> str:
+        return str(value).strip().lower().replace(" ", "_")
+
+    def _resolve_variable_match(
+        self, variable_label: str, alias_map: dict[str, str]
+    ) -> Optional[str]:
+        normalized = self._normalize_name(variable_label)
+        for candidate in (
+            variable_label,
+            normalized,
+            f"expense_{normalized}",
+        ):
+            resolved = alias_map.get(candidate)
+            if resolved:
+                return resolved
+        return None
+
+    def build_default_structure(self, variables: dict[str, object]) -> None:
         """Build default causal structure from common business relationships."""
         # Define common causal relationships
         default_edges = [
@@ -70,21 +87,19 @@ class BayesianEngine:
             ("net_income", "cash_on_hand", 0.8, "Income builds cash"),
         ]
 
-        existing_vars = set(variable_names)
-        for from_var, to_var, strength, desc in default_edges:
-            # Only add edges where both variables exist
-            from_match = from_var if from_var in existing_vars else None
-            to_match = to_var if to_var in existing_vars else None
+        alias_map: dict[str, str] = {}
+        for variable_id, variable in variables.items():
+            alias_map[variable_id] = variable_id
+            alias_map[self._normalize_name(variable_id)] = variable_id
 
-            # Check with expense_ prefix
-            if not from_match:
-                prefixed = f"expense_{from_var.lower().replace(' ', '_')}"
-                if prefixed in existing_vars:
-                    from_match = prefixed
-            if not to_match:
-                prefixed = f"expense_{to_var.lower().replace(' ', '_')}"
-                if prefixed in existing_vars:
-                    to_match = prefixed
+            variable_name = getattr(variable, "name", None)
+            if variable_name:
+                alias_map[str(variable_name)] = variable_id
+                alias_map[self._normalize_name(str(variable_name))] = variable_id
+
+        for from_var, to_var, strength, desc in default_edges:
+            from_match = self._resolve_variable_match(from_var, alias_map)
+            to_match = self._resolve_variable_match(to_var, alias_map)
 
             if from_match and to_match:
                 self.add_edge(from_match, to_match, strength, desc)
@@ -99,6 +114,7 @@ class BayesianEngine:
         for node in self.nodes:
             # Placeholder posterior — will be computed via pgmpy
             posteriors[node] = {
+                "stub": True,
                 "type": "normal",
                 "params": {"mean": 0.0, "std": 1.0},
             }

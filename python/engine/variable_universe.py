@@ -12,6 +12,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from enum import Enum
 from typing import Optional
+import warnings
 import numpy as np
 from scipy import stats
 
@@ -31,34 +32,76 @@ class Distribution:
     type: DistributionType
     params: dict[str, float]
 
+    def _warn_and_fallback(self, n: int, reason: str) -> np.ndarray:
+        fallback_mean = self.params.get("mean", 0.0)
+        try:
+            fill_value = float(fallback_mean)
+        except (TypeError, ValueError):
+            fill_value = 0.0
+        warnings.warn(
+            f"Invalid parameters for distribution '{self.type}': {reason}. "
+            "Returning constant fallback samples.",
+            RuntimeWarning,
+            stacklevel=2,
+        )
+        return np.full(n, fill_value, dtype=float)
+
     def sample(self, n: int = 1) -> np.ndarray:
         """Sample n values from this distribution."""
         if self.type == DistributionType.NORMAL:
-            return np.random.normal(
-                self.params["mean"], self.params["std"], n
-            )
+            mean = float(self.params.get("mean", 0.0))
+            std = float(self.params.get("std", 0.0))
+            if not np.isfinite(std) or std <= 0:
+                return self._warn_and_fallback(n, "std must be finite and > 0")
+            if not np.isfinite(mean):
+                return self._warn_and_fallback(n, "mean must be finite")
+            return np.random.normal(mean, std, n)
         elif self.type == DistributionType.LOGNORMAL:
-            return np.random.lognormal(
-                self.params["mean"], self.params["sigma"], n
-            )
+            mean = float(self.params.get("mean", 0.0))
+            sigma = float(self.params.get("sigma", 0.0))
+            if not np.isfinite(sigma) or sigma <= 0:
+                return self._warn_and_fallback(n, "sigma must be finite and > 0")
+            if not np.isfinite(mean):
+                return self._warn_and_fallback(n, "mean must be finite")
+            return np.random.lognormal(mean, sigma, n)
         elif self.type == DistributionType.BETA:
-            return np.random.beta(
-                self.params["alpha"], self.params["beta"], n
-            )
+            alpha = float(self.params.get("alpha", 0.0))
+            beta = float(self.params.get("beta", 0.0))
+            if (not np.isfinite(alpha)) or alpha <= 0:
+                return self._warn_and_fallback(n, "alpha must be finite and > 0")
+            if (not np.isfinite(beta)) or beta <= 0:
+                return self._warn_and_fallback(n, "beta must be finite and > 0")
+            return np.random.beta(alpha, beta, n)
         elif self.type == DistributionType.UNIFORM:
-            return np.random.uniform(
-                self.params["low"], self.params["high"], n
-            )
+            low = float(self.params.get("low", 0.0))
+            high = float(self.params.get("high", 0.0))
+            if (not np.isfinite(low)) or (not np.isfinite(high)):
+                return self._warn_and_fallback(n, "low/high must be finite")
+            if high <= low:
+                return self._warn_and_fallback(n, "high must be greater than low")
+            return np.random.uniform(low, high, n)
         elif self.type == DistributionType.EMPIRICAL:
             data = np.array(self.params.get("data", [0]))
+            if data.size == 0:
+                return self._warn_and_fallback(n, "empirical data cannot be empty")
             return np.random.choice(data, size=n, replace=True)
         elif self.type == DistributionType.POISSON:
-            return np.random.poisson(self.params["lam"], n)
+            lam = float(self.params.get("lam", -1.0))
+            if (not np.isfinite(lam)) or lam < 0:
+                return self._warn_and_fallback(n, "lam must be finite and >= 0")
+            return np.random.poisson(lam, n)
         elif self.type == DistributionType.TRIANGULAR:
+            left = float(self.params.get("left", 0.0))
+            mode = float(self.params.get("mode", 0.0))
+            right = float(self.params.get("right", 0.0))
+            if not (np.isfinite(left) and np.isfinite(mode) and np.isfinite(right)):
+                return self._warn_and_fallback(n, "left/mode/right must be finite")
+            if not (left < mode < right):
+                return self._warn_and_fallback(n, "must satisfy left < mode < right")
             return np.random.triangular(
-                self.params["left"],
-                self.params["mode"],
-                self.params["right"],
+                left,
+                mode,
+                right,
                 n,
             )
         else:
@@ -95,9 +138,12 @@ class VariableUniverse:
 
         if len(arr) < 5:
             # Too few data points — use normal with sample stats
+            std_val = float(np.std(arr, ddof=1))
+            if not np.isfinite(std_val) or std_val <= 0:
+                std_val = 1.0
             return Distribution(
                 type=DistributionType.NORMAL,
-                params={"mean": float(np.mean(arr)), "std": float(np.std(arr, ddof=1)) or 1.0},
+                params={"mean": float(np.mean(arr)), "std": std_val},
             )
 
         # Try common distributions and pick best fit (KS test)
