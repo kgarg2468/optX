@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabase/server";
+import { mapSupabaseError, type SupabaseErrorLike } from "@/lib/supabase/diagnostics";
 
 const PYTHON_API_URL = process.env.PYTHON_API_URL || "http://localhost:8000";
 
@@ -54,16 +55,24 @@ export async function POST(request: NextRequest) {
       ]);
 
     if (businessError || !business) {
+      const mapped = mapSupabaseError(businessError as SupabaseErrorLike, {
+        defaultMessage: "Failed to load business data",
+        notFoundMessage: "Business not found",
+      });
       return NextResponse.json(
-        { error: businessError?.message || "Business not found" },
-        { status: 404 }
+        mapped.body,
+        { status: mapped.status }
       );
     }
 
     if (simError || !simulation) {
+      const mapped = mapSupabaseError(simError as SupabaseErrorLike, {
+        defaultMessage: "Failed to load simulation data",
+        notFoundMessage: "Simulation not found",
+      });
       return NextResponse.json(
-        { error: simError?.message || "Simulation not found" },
-        { status: 404 }
+        mapped.body,
+        { status: mapped.status }
       );
     }
 
@@ -112,9 +121,12 @@ export async function POST(request: NextRequest) {
       .eq("id", simulationId);
 
     if (persistError) {
+      const mapped = mapSupabaseError(persistError as SupabaseErrorLike, {
+        defaultMessage: "Failed to persist agent analysis",
+      });
       return NextResponse.json(
-        { error: persistError.message },
-        { status: 500 }
+        mapped.body,
+        { status: mapped.status }
       );
     }
 
@@ -154,9 +166,13 @@ export async function GET(request: NextRequest) {
       .single();
 
     if (error || !data) {
+      const mapped = mapSupabaseError(error as SupabaseErrorLike, {
+        defaultMessage: "Failed to fetch agent analysis",
+        notFoundMessage: "Simulation not found",
+      });
       return NextResponse.json(
-        { error: error?.message || "Simulation not found" },
-        { status: error?.code === "PGRST116" ? 404 : 500 }
+        mapped.body,
+        { status: mapped.status }
       );
     }
 

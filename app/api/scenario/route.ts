@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabase/server";
+import { mapSupabaseError, type SupabaseErrorLike } from "@/lib/supabase/diagnostics";
 import type { GraphState, Scenario, ScenarioVariable } from "@/lib/types";
 
 function isValidUuid(value: unknown): value is string {
@@ -66,9 +67,12 @@ export async function POST(request: NextRequest) {
       .single();
 
     if (error || !data) {
+      const mapped = mapSupabaseError(error as SupabaseErrorLike, {
+        defaultMessage: "Failed to create scenario",
+      });
       return NextResponse.json(
-        { error: error?.message || "Failed to create scenario" },
-        { status: 500 }
+        mapped.body,
+        { status: mapped.status }
       );
     }
 
@@ -106,9 +110,13 @@ export async function GET(request: NextRequest) {
         .single();
 
       if (error || !data) {
+        const mapped = mapSupabaseError(error as SupabaseErrorLike, {
+          defaultMessage: "Failed to fetch scenario",
+          notFoundMessage: "Scenario not found",
+        });
         return NextResponse.json(
-          { error: error?.message || "Scenario not found" },
-          { status: error?.code === "PGRST116" ? 404 : 500 }
+          mapped.body,
+          { status: mapped.status }
         );
       }
 
@@ -135,7 +143,10 @@ export async function GET(request: NextRequest) {
       .order("created_at", { ascending: false });
 
     if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 });
+      const mapped = mapSupabaseError(error as SupabaseErrorLike, {
+        defaultMessage: "Failed to fetch scenarios",
+      });
+      return NextResponse.json(mapped.body, { status: mapped.status });
     }
 
     return NextResponse.json({
@@ -184,9 +195,12 @@ export async function PUT(request: NextRequest) {
       .single();
 
     if (error || !data) {
+      const mapped = mapSupabaseError(error as SupabaseErrorLike, {
+        defaultMessage: "Failed to update scenario",
+      });
       return NextResponse.json(
-        { error: error?.message || "Failed to update scenario" },
-        { status: 500 }
+        mapped.body,
+        { status: mapped.status }
       );
     }
 
@@ -226,7 +240,10 @@ export async function DELETE(request: NextRequest) {
       .eq("id", scenarioId);
 
     if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 });
+      const mapped = mapSupabaseError(error as SupabaseErrorLike, {
+        defaultMessage: "Failed to delete scenario",
+      });
+      return NextResponse.json(mapped.body, { status: mapped.status });
     }
 
     return NextResponse.json({

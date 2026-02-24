@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabase/server";
+import { mapSupabaseError, type SupabaseErrorLike } from "@/lib/supabase/diagnostics";
 import type {
   AgentCoordinatorOutput,
   BacktestResult,
@@ -119,9 +120,13 @@ export async function POST(request: NextRequest) {
       .single();
 
     if (businessError || !businessRow) {
+      const mapped = mapSupabaseError(businessError as SupabaseErrorLike, {
+        defaultMessage: "Failed to load business data",
+        notFoundMessage: "Business not found",
+      });
       return NextResponse.json(
-        { error: businessError?.message || "Business not found" },
-        { status: 404 }
+        mapped.body,
+        { status: mapped.status }
       );
     }
 
@@ -134,9 +139,13 @@ export async function POST(request: NextRequest) {
         .single();
 
       if (scenarioError) {
+        const mapped = mapSupabaseError(scenarioError as SupabaseErrorLike, {
+          defaultMessage: "Failed to load scenario data",
+          notFoundMessage: "Scenario not found",
+        });
         return NextResponse.json(
-          { error: scenarioError.message },
-          { status: 404 }
+          mapped.body,
+          { status: mapped.status }
         );
       }
 
@@ -227,9 +236,12 @@ export async function POST(request: NextRequest) {
       .single();
 
     if (persistError || !persisted) {
+      const mapped = mapSupabaseError(persistError as SupabaseErrorLike, {
+        defaultMessage: "Failed to persist simulation",
+      });
       return NextResponse.json(
-        { error: persistError?.message || "Failed to persist simulation" },
-        { status: 500 }
+        mapped.body,
+        { status: mapped.status }
       );
     }
 
@@ -271,9 +283,13 @@ export async function GET(request: NextRequest) {
       .single();
 
     if (error || !data) {
+      const mapped = mapSupabaseError(error as SupabaseErrorLike, {
+        defaultMessage: "Failed to fetch simulation status",
+        notFoundMessage: "Simulation not found",
+      });
       return NextResponse.json(
-        { error: error?.message || "Simulation not found" },
-        { status: error?.code === "PGRST116" ? 404 : 500 }
+        mapped.body,
+        { status: mapped.status }
       );
     }
 

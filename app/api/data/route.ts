@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabase/server";
+import { mapSupabaseError, type SupabaseErrorLike } from "@/lib/supabase/diagnostics";
 import type { BusinessData, DataSource, IndustryType, BusinessSize } from "@/lib/types";
 
 const DEFAULT_USER_ID =
@@ -137,9 +138,12 @@ export async function POST(request: NextRequest) {
       .single();
 
     if (businessError || !savedBusiness) {
+      const mapped = mapSupabaseError(businessError as SupabaseErrorLike, {
+        defaultMessage: "Failed to save business data",
+      });
       return NextResponse.json(
-        { error: businessError?.message || "Failed to save business data" },
-        { status: 500 }
+        mapped.body,
+        { status: mapped.status }
       );
     }
 
@@ -154,9 +158,12 @@ export async function POST(request: NextRequest) {
         .upsert(sourceRows, { onConflict: "id" });
 
       if (sourceUpsertError) {
+        const mapped = mapSupabaseError(sourceUpsertError as SupabaseErrorLike, {
+          defaultMessage: "Failed to save data sources",
+        });
         return NextResponse.json(
-          { error: sourceUpsertError.message },
-          { status: 500 }
+          mapped.body,
+          { status: mapped.status }
         );
       }
     }
@@ -168,9 +175,12 @@ export async function POST(request: NextRequest) {
       .order("uploaded_at", { ascending: false });
 
     if (sourcesError) {
+      const mapped = mapSupabaseError(sourcesError as SupabaseErrorLike, {
+        defaultMessage: "Failed to load data sources",
+      });
       return NextResponse.json(
-        { error: sourcesError.message },
-        { status: 500 }
+        mapped.body,
+        { status: mapped.status }
       );
     }
 
@@ -216,9 +226,13 @@ export async function GET(request: NextRequest) {
       .single();
 
     if (businessError) {
+      const mapped = mapSupabaseError(businessError as SupabaseErrorLike, {
+        defaultMessage: "Failed to fetch business data",
+        notFoundMessage: "Business not found",
+      });
       return NextResponse.json(
-        { error: businessError.message },
-        { status: businessError.code === "PGRST116" ? 404 : 500 }
+        mapped.body,
+        { status: mapped.status }
       );
     }
 
@@ -229,9 +243,12 @@ export async function GET(request: NextRequest) {
       .order("uploaded_at", { ascending: false });
 
     if (sourceError) {
+      const mapped = mapSupabaseError(sourceError as SupabaseErrorLike, {
+        defaultMessage: "Failed to fetch business data sources",
+      });
       return NextResponse.json(
-        { error: sourceError.message },
-        { status: 500 }
+        mapped.body,
+        { status: mapped.status }
       );
     }
 
