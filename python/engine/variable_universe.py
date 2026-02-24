@@ -7,6 +7,8 @@ Every data point becomes a typed variable with:
 - Time-series behavior
 """
 
+from __future__ import annotations
+
 from dataclasses import dataclass, field
 from enum import Enum
 from typing import Optional
@@ -31,37 +33,36 @@ class Distribution:
 
     def sample(self, n: int = 1) -> np.ndarray:
         """Sample n values from this distribution."""
-        match self.type:
-            case DistributionType.NORMAL:
-                return np.random.normal(
-                    self.params["mean"], self.params["std"], n
-                )
-            case DistributionType.LOGNORMAL:
-                return np.random.lognormal(
-                    self.params["mean"], self.params["sigma"], n
-                )
-            case DistributionType.BETA:
-                return np.random.beta(
-                    self.params["alpha"], self.params["beta"], n
-                )
-            case DistributionType.UNIFORM:
-                return np.random.uniform(
-                    self.params["low"], self.params["high"], n
-                )
-            case DistributionType.EMPIRICAL:
-                data = np.array(self.params.get("data", [0]))
-                return np.random.choice(data, size=n, replace=True)
-            case DistributionType.POISSON:
-                return np.random.poisson(self.params["lam"], n)
-            case DistributionType.TRIANGULAR:
-                return np.random.triangular(
-                    self.params["left"],
-                    self.params["mode"],
-                    self.params["right"],
-                    n,
-                )
-            case _:
-                return np.zeros(n)
+        if self.type == DistributionType.NORMAL:
+            return np.random.normal(
+                self.params["mean"], self.params["std"], n
+            )
+        elif self.type == DistributionType.LOGNORMAL:
+            return np.random.lognormal(
+                self.params["mean"], self.params["sigma"], n
+            )
+        elif self.type == DistributionType.BETA:
+            return np.random.beta(
+                self.params["alpha"], self.params["beta"], n
+            )
+        elif self.type == DistributionType.UNIFORM:
+            return np.random.uniform(
+                self.params["low"], self.params["high"], n
+            )
+        elif self.type == DistributionType.EMPIRICAL:
+            data = np.array(self.params.get("data", [0]))
+            return np.random.choice(data, size=n, replace=True)
+        elif self.type == DistributionType.POISSON:
+            return np.random.poisson(self.params["lam"], n)
+        elif self.type == DistributionType.TRIANGULAR:
+            return np.random.triangular(
+                self.params["left"],
+                self.params["mode"],
+                self.params["right"],
+                n,
+            )
+        else:
+            return np.zeros(n)
 
 
 @dataclass

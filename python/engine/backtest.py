@@ -4,6 +4,8 @@ Validates simulation accuracy against historical data.
 Produces calibration scores, Brier scores, and ensemble disagreement.
 """
 
+from __future__ import annotations
+
 from dataclasses import dataclass
 import numpy as np
 from typing import Optional

@@ -4,6 +4,8 @@ Determines which variables have the greatest impact on outputs.
 Output: "Your net income is 40% driven by raw material costs."
 """
 
+from __future__ import annotations
+
 from dataclasses import dataclass
 import numpy as np
 from typing import Callable

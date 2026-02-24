@@ -15,7 +15,7 @@ npx shadcn@latest add <component>  # Add ShadCN component (style: new-york)
 # Python backend (FastAPI)
 cd python
 pip install -r requirements.txt
-uvicorn main:app --reload --port 8000
+python -m uvicorn main:app --reload --port 8000
 ```
 
 No test framework is configured yet. Both services must run simultaneously for full functionality.

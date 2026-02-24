@@ -4,6 +4,8 @@ Models volatility clustering in financial time series.
 Captures periods of high/low volatility for more realistic simulations.
 """
 
+from __future__ import annotations
+
 from dataclasses import dataclass
 import numpy as np
 from typing import Optional

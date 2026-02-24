@@ -5,6 +5,8 @@ Each iteration = one possible business future.
 Preserves correlations between variables via copulas.
 """
 
+from __future__ import annotations
+
 from dataclasses import dataclass
 import numpy as np
 from scipy import stats

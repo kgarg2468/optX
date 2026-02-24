@@ -4,6 +4,8 @@ All 6 specialized agents inherit from this base.
 Handles Claude API integration, structured output, and common analysis patterns.
 """
 
+from __future__ import annotations
+
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from typing import Optional

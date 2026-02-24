@@ -5,6 +5,8 @@ E.g., Interest Rate → Debt Cost → Cash Flow → Growth Capacity.
 Learned from data + AI agent suggestions.
 """
 
+from __future__ import annotations
+
 from dataclasses import dataclass
 import numpy as np
 from typing import Optional

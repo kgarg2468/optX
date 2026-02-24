@@ -3,6 +3,8 @@
 Mathematical simulation engine and AI agent system.
 """
 
+from __future__ import annotations
+
 from dataclasses import asdict
 from typing import Any, Optional, List
 import json
