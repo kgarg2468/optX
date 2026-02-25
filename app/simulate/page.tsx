@@ -111,6 +111,11 @@ type DisplayBacktest = {
   walkForwardResults: DisplayBacktestPoint[];
 };
 
+type ExecutiveSparkPoint = {
+  month: string;
+  baseline: number;
+};
+
 type DisplayAgentFinding = {
   summary: string;
   confidence: number;
@@ -135,6 +140,114 @@ type DisplayAgentAnalysis = {
   unifiedFindings: DisplayAgentFinding[];
   debateRounds: DisplayDebateRound[];
 };
+
+type ExecutiveSummaryProps = {
+  headline: string;
+  expectedMonth12Revenue: number;
+  primaryRiskDriver: DisplaySensitivity | null;
+  modelAccuracy: number;
+  aggregateProjection: ExecutiveSparkPoint[];
+};
+
+function ExecutiveSimulationSummary({
+  headline,
+  expectedMonth12Revenue,
+  primaryRiskDriver,
+  modelAccuracy,
+  aggregateProjection,
+}: ExecutiveSummaryProps) {
+  const accuracyTone = getAccuracyTone(modelAccuracy);
+
+  return (
+    <Card className="border-primary/30 bg-primary/5">
+      <CardHeader className="pb-3">
+        <CardTitle className="text-lg">Auto-Generated Simulation Summary</CardTitle>
+        <CardDescription>{headline}</CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div className="grid gap-3 md:grid-cols-3">
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-xs text-muted-foreground">
+                Expected Month 12 Revenue
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-2xl font-semibold">
+                {formatCurrency(expectedMonth12Revenue)}
+              </p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-xs text-muted-foreground">
+                Primary Risk Driver
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-lg font-semibold">
+                {primaryRiskDriver ? formatVarName(primaryRiskDriver.variable) : "N/A"}
+              </p>
+              {primaryRiskDriver ? (
+                <p className="text-xs text-muted-foreground">
+                  Sobol: {formatDecimal(primaryRiskDriver.totalSobolIndex, 3)}
+                </p>
+              ) : null}
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-xs text-muted-foreground">
+                Model Accuracy
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-2">
+              <p className="text-2xl font-semibold">{formatPercent(modelAccuracy)}</p>
+              <Badge className={accuracyTone}>
+                {getAccuracyTier(modelAccuracy) === "high"
+                  ? "High"
+                  : getAccuracyTier(modelAccuracy) === "moderate"
+                    ? "Moderate"
+                    : "Low"}
+              </Badge>
+            </CardContent>
+          </Card>
+        </div>
+
+        <div className="rounded-md border border-border/70 bg-card p-3">
+          <p className="mb-2 text-xs font-medium text-muted-foreground">
+            Aggregate Baseline Projection
+          </p>
+          {aggregateProjection.length > 0 ? (
+            <div className="h-20 w-full">
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={aggregateProjection}>
+                  <Tooltip
+                    formatter={(value) => [formatCurrency(toNumber(value)), "Baseline"]}
+                    labelFormatter={(label) => toStringValue(label)}
+                  />
+                  <Line
+                    type="monotone"
+                    dataKey="baseline"
+                    stroke="hsl(var(--primary))"
+                    strokeWidth={2.5}
+                    dot={false}
+                  />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+          ) : (
+            <p className="text-xs text-muted-foreground">
+              Projection data unavailable.
+            </p>
+          )}
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
 
 const STATUS_PROGRESS_FALLBACK: Record<SimulationStatus, number> = {
   idle: 0,
@@ -319,6 +432,48 @@ function getAccuracyTier(accuracy: number): "high" | "moderate" | "low" {
   if (normalized > 0.8) return "high";
   if (normalized > 0.5) return "moderate";
   return "low";
+}
+
+function buildAggregateBaselineProjection(
+  results: DisplayMonteCarlo[]
+): ExecutiveSparkPoint[] {
+  const withProjection = results.filter(
+    (item) => item.timeSeriesProjection.length > 0
+  );
+  if (withProjection.length === 0) return [];
+
+  const maxMonths = Math.max(
+    ...withProjection.map((item) => item.timeSeriesProjection.length)
+  );
+
+  return Array.from({ length: maxMonths }, (_, idx) => {
+    const points = withProjection
+      .map((item) => item.timeSeriesProjection[idx]?.p50)
+      .filter((value): value is number => Number.isFinite(value));
+    const baseline =
+      points.length > 0
+        ? points.reduce((sum, value) => sum + value, 0) / points.length
+        : 0;
+
+    return {
+      month: `Month ${idx + 1}`,
+      baseline,
+    };
+  });
+}
+
+function getExecutiveHeadline(accuracy: number, expectedRevenue: number): string {
+  const tier = getAccuracyTier(accuracy);
+  if (tier === "high" && expectedRevenue >= 0) {
+    return "Simulation Complete. High confidence in revenue targets.";
+  }
+  if (tier === "high") {
+    return "Simulation Complete. High-confidence model output with stable projections.";
+  }
+  if (tier === "moderate") {
+    return "Simulation Complete. Moderate confidence; monitor key risk drivers.";
+  }
+  return "Simulation Complete. Elevated risk detected; prioritize mitigation planning.";
 }
 
 function getMonteCarloResults(rawResult: unknown): DisplayMonteCarlo[] {
@@ -547,6 +702,21 @@ export default function SimulatePage() {
   const maxSensitivityImpact = rankedSensitivity.length
     ? Math.max(...rankedSensitivity.map((item) => Math.abs(item.totalSobolIndex)))
     : 0;
+  const primaryRiskDriver = topSensitivity[0] ?? null;
+  const revenueProjection = monteCarloResults.find((item) =>
+    item.variable.toLowerCase().includes("revenue")
+  );
+  const month12RevenuePoint =
+    revenueProjection?.timeSeriesProjection.find((point) => point.month === "Month 12") ??
+    revenueProjection?.timeSeriesProjection.at(-1);
+  const expectedMonth12Revenue =
+    month12RevenuePoint?.p50 ?? revenueProjection?.median ?? 0;
+  const executiveHeadline = getExecutiveHeadline(
+    backtestData.accuracy,
+    expectedMonth12Revenue
+  );
+  const aggregateBaselineProjection =
+    buildAggregateBaselineProjection(monteCarloResults);
 
   useEffect(() => {
     void loadProjects();
@@ -833,6 +1003,18 @@ export default function SimulatePage() {
 
           {currentResult ? (
             <CardContent>
+              {simulationStatus === "complete" ? (
+                <div className="mb-6">
+                  <ExecutiveSimulationSummary
+                    headline={executiveHeadline}
+                    expectedMonth12Revenue={expectedMonth12Revenue}
+                    primaryRiskDriver={primaryRiskDriver}
+                    modelAccuracy={backtestData.accuracy}
+                    aggregateProjection={aggregateBaselineProjection}
+                  />
+                </div>
+              ) : null}
+
               <Tabs defaultValue="monte-carlo" className="space-y-6">
                 <TabsList className="grid h-auto w-full grid-cols-2 gap-2 md:grid-cols-5">
                   <TabsTrigger value="monte-carlo">Monte Carlo</TabsTrigger>
