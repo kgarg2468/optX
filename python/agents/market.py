@@ -35,7 +35,7 @@ Provide:
 
 Format your response as structured analysis."""
 
-        response = self._call_claude(prompt)
+        response = self._call_llm(prompt)
 
         return AgentAnalysis(
             agent_type=self.agent_type,
@@ -62,4 +62,4 @@ Their analysis:
 
 Provide specific market-perspective critiques. Challenge assumptions about demand, competition, or market conditions."""
 
-        return self._call_claude(prompt, max_tokens=1024)
+        return self._call_llm(prompt, max_tokens=1024)

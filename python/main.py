@@ -13,7 +13,7 @@ import os
 import uuid
 import warnings
 
-from anthropic import Anthropic
+from openai import OpenAI
 from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException, Depends, Security
 from fastapi.middleware.cors import CORSMiddleware
@@ -31,16 +31,16 @@ load_dotenv()
 
 logger = logging.getLogger(__name__)
 
-ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY")
-if not ANTHROPIC_API_KEY:
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+if not OPENAI_API_KEY:
     warnings.warn(
-        "ANTHROPIC_API_KEY not set — AI features will return stub responses",
+        "OPENAI_API_KEY not set — AI features will return stub responses",
         RuntimeWarning,
         stacklevel=2,
     )
 API_AUTH_TOKEN = os.getenv("OPTX_API_TOKEN")
 
-anthropic_client = Anthropic(api_key=ANTHROPIC_API_KEY or "")
+openai_client = OpenAI(api_key=OPENAI_API_KEY or "")
 security = HTTPBearer(auto_error=False)
 
 app = FastAPI(
@@ -420,13 +420,12 @@ async def chat(
     messages.append({"role": "user", "content": request.message})
 
     try:
-        response = anthropic_client.messages.create(
-            model="claude-sonnet-4-20250514",
+        response = openai_client.chat.completions.create(
+            model="gpt-4o-mini" if request.mode == "parse_scenario" else "gpt-4o",
             max_tokens=1024,
-            system=system_prompt,
-            messages=messages,
+            messages=[{"role": "system", "content": system_prompt}] + messages,
         )
-        reply = response.content[0].text
+        reply = response.choices[0].message.content or ""
 
         if request.mode == "parse_scenario":
             try:

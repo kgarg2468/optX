@@ -34,7 +34,7 @@ Provide:
 3. Expansion scenario parameters
 4. Growth sustainability assessment"""
 
-        response = self._call_claude(prompt)
+        response = self._call_llm(prompt)
 
         return AgentAnalysis(
             agent_type=self.agent_type,
@@ -61,4 +61,4 @@ Their analysis:
 
 Challenge assumptions about growth potential, scalability, and market opportunity."""
 
-        return self._call_claude(prompt, max_tokens=1024)
+        return self._call_llm(prompt, max_tokens=1024)

@@ -35,7 +35,7 @@ Provide:
 3. Risk correlations (which risks trigger others)
 4. Mitigation recommendations"""
 
-        response = self._call_claude(prompt)
+        response = self._call_llm(prompt)
 
         return AgentAnalysis(
             agent_type=self.agent_type,
@@ -62,4 +62,4 @@ Their analysis:
 
 Identify risks they've overlooked. Challenge optimistic assumptions. Point out vulnerabilities."""
 
-        return self._call_claude(prompt, max_tokens=1024)
+        return self._call_llm(prompt, max_tokens=1024)

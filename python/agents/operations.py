@@ -34,7 +34,7 @@ Provide:
 3. Workforce capacity analysis
 4. Process improvement recommendations with estimated savings"""
 
-        response = self._call_claude(prompt)
+        response = self._call_llm(prompt)
 
         return AgentAnalysis(
             agent_type=self.agent_type,
@@ -61,4 +61,4 @@ Their analysis:
 
 Challenge assumptions about operational feasibility, resource constraints, and implementation complexity."""
 
-        return self._call_claude(prompt, max_tokens=1024)
+        return self._call_llm(prompt, max_tokens=1024)

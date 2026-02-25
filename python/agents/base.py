@@ -1,7 +1,7 @@
 """Base Agent Class
 
 All 6 specialized agents inherit from this base.
-Handles Claude API integration, structured output, and common analysis patterns.
+Handles LLM API integration, structured output, and common analysis patterns.
 """
 
 from __future__ import annotations
@@ -12,7 +12,7 @@ import logging
 from typing import Optional
 import os
 
-import anthropic
+from openai import OpenAI
 
 logger = logging.getLogger(__name__)
 
@@ -44,11 +44,9 @@ class BaseAgent(ABC):
     def __init__(self, agent_type: str, system_prompt: str):
         self.agent_type = agent_type
         self.system_prompt = system_prompt
-        self.api_key = os.getenv("ANTHROPIC_API_KEY", "")
-        self.client = anthropic.Anthropic(
-            api_key=self.api_key
-        )
-        self.model = "claude-sonnet-4-20250514"
+        self.api_key = os.getenv("OPENAI_API_KEY", "")
+        self.client = OpenAI(api_key=self.api_key)
+        self.model = "gpt-4o"
 
     @abstractmethod
     def analyze(self, business_data: dict, simulation_data: dict) -> AgentAnalysis:
@@ -62,23 +60,25 @@ class BaseAgent(ABC):
         """Critique another agent's analysis during debate rounds."""
         ...
 
-    def _call_claude(self, prompt: str, max_tokens: int = 4096) -> str:
-        """Call Claude API with the agent's system prompt."""
-        if not self.client.api_key:
+    def _call_llm(self, prompt: str, max_tokens: int = 4096) -> str:
+        """Call LLM API with the agent's system prompt."""
+        if not self.api_key:
             logger.warning(
-                "ANTHROPIC_API_KEY not configured for %s agent; returning stub response.",
+                "OPENAI_API_KEY not configured for %s agent; returning stub response.",
                 self.agent_type,
             )
             return f"[{self.agent_type} agent]: API key not configured. Stub response."
 
         try:
-            message = self.client.messages.create(
+            response = self.client.chat.completions.create(
                 model=self.model,
                 max_tokens=max_tokens,
-                system=self.system_prompt,
-                messages=[{"role": "user", "content": prompt}],
+                messages=[
+                    {"role": "system", "content": self.system_prompt},
+                    {"role": "user", "content": prompt},
+                ],
             )
-            return message.content[0].text
+            return response.choices[0].message.content or ""
         except Exception as exc:
             logger.error(
                 "AI call failed for %s agent: %s",

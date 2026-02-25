@@ -34,7 +34,7 @@ Provide:
 3. Competitive positioning insights
 4. Brand-related variables for simulation"""
 
-        response = self._call_claude(prompt)
+        response = self._call_llm(prompt)
 
         return AgentAnalysis(
             agent_type=self.agent_type,
@@ -61,4 +61,4 @@ Their analysis:
 
 Challenge assumptions about customer perception, marketing ROI, and brand impact on financials."""
 
-        return self._call_claude(prompt, max_tokens=1024)
+        return self._call_llm(prompt, max_tokens=1024)

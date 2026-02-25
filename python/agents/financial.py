@@ -36,7 +36,7 @@ Provide:
 
 Format your response as structured analysis."""
 
-        response = self._call_claude(prompt)
+        response = self._call_llm(prompt)
 
         return AgentAnalysis(
             agent_type=self.agent_type,
@@ -63,4 +63,4 @@ Their analysis:
 
 Challenge any assumptions about financial feasibility, cash flow implications, or financial risks."""
 
-        return self._call_claude(prompt, max_tokens=1024)
+        return self._call_llm(prompt, max_tokens=1024)
