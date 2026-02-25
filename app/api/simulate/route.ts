@@ -134,7 +134,7 @@ export async function POST(request: NextRequest) {
     if (scenarioId) {
       const { data: scenarioRow, error: scenarioError } = await supabase
         .from("scenarios")
-        .select("variables")
+        .select("business_id, variables")
         .eq("id", scenarioId)
         .single();
 
@@ -146,6 +146,15 @@ export async function POST(request: NextRequest) {
         return NextResponse.json(
           mapped.body,
           { status: mapped.status }
+        );
+      }
+
+      if (String(scenarioRow?.business_id || "") !== businessId) {
+        return NextResponse.json(
+          {
+            error: "Selected scenario does not belong to the provided businessId",
+          },
+          { status: 400 }
         );
       }
 

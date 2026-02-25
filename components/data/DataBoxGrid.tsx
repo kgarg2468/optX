@@ -236,13 +236,18 @@ function DataBoxCard({
   );
 }
 
-export function DataBoxGrid() {
+interface DataBoxGridProps {
+  onPersisted?: () => void;
+}
+
+export function DataBoxGrid({ onPersisted }: DataBoxGridProps) {
   const {
     businessData,
     dataSources,
     addDataSource,
     setBusinessData,
     setDataSources,
+    markClean,
     setSaving,
   } = useBusinessStore();
   const [selectedBox, setSelectedBox] = useState<DataBoxConfig | null>(null);
@@ -276,13 +281,15 @@ export function DataBoxGrid() {
       }
 
       if (payload.business) {
-        setBusinessData(payload.business);
+        setBusinessData(payload.business, { markDirty: false });
       } else if (payload.businessId) {
-        setBusinessData({ id: payload.businessId });
+        setBusinessData({ id: payload.businessId }, { markDirty: false });
       }
       if (payload.dataSources) {
-        setDataSources(payload.dataSources);
+        setDataSources(payload.dataSources, { markDirty: false });
       }
+      markClean();
+      onPersisted?.();
     } catch (error) {
       setSaveError(
         error instanceof Error ? error.message : "Failed to save data source"

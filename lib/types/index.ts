@@ -55,6 +55,16 @@ export interface BusinessData {
   updatedAt: string;
 }
 
+export interface ProjectSummary {
+  id: string;
+  name: string;
+  industry: IndustryType;
+  size: BusinessSize;
+  updatedAt: string;
+  dataSourceCount: number;
+  scenarioCount: number;
+}
+
 // --- Data Sources (Advanced) ---
 
 export type DataSourceTier = "core" | "contextual" | "custom";

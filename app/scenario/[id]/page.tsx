@@ -6,6 +6,7 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { useScenarioStore } from "@/lib/store/scenario-store";
 import { useSimulationStore } from "@/lib/store/simulation-store";
+import { useProjectStore } from "@/lib/store/project-store";
 import { GraphEditor } from "@/components/graph/GraphEditor";
 import { NodePalette } from "@/components/graph/NodePalette";
 import { ConfigPanel } from "@/components/graph/ConfigPanel";
@@ -32,6 +33,7 @@ export default function ScenarioPage({
   } = useScenarioStore();
   const { config, setStatus, setResult, addPastResult, setError } =
     useSimulationStore();
+  const { setActiveProject } = useProjectStore();
 
   const scenario = useMemo(
     () => scenarios.find((s) => s.id === id),
@@ -46,6 +48,12 @@ export default function ScenarioPage({
   const graphState = getGraphState(id);
 
   useEffect(() => {
+    if (scenario?.businessId) {
+      setActiveProject(scenario.businessId);
+    }
+  }, [scenario?.businessId, setActiveProject]);
+
+  useEffect(() => {
     if (scenario) return;
 
     const controller = new AbortController();
@@ -57,6 +65,9 @@ export default function ScenarioPage({
         const payload = await res.json();
         if (!res.ok || !payload.success || !payload.data) return;
         addScenario(payload.data);
+        if (payload.data.businessId) {
+          setActiveProject(payload.data.businessId);
+        }
       } catch {
         // Keep local state if request fails
       }
@@ -64,7 +75,7 @@ export default function ScenarioPage({
 
     void loadScenario();
     return () => controller.abort();
-  }, [scenario, id, addScenario]);
+  }, [scenario, id, addScenario, setActiveProject]);
 
   // Initialize graph from scenario variables if graph is empty
   useEffect(() => {

@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import {
   Building2,
   DollarSign,
@@ -40,6 +39,7 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { useBusinessStore } from "@/lib/store/business-store";
 import type {
+  BusinessData,
   IndustryType,
   BusinessSize,
   RevenueTrend,
@@ -124,7 +124,11 @@ function NLPToggleField({ label, placeholder, onExtract }: NLPFieldProps) {
   );
 }
 
-export function QuickStartForm() {
+interface QuickStartFormProps {
+  onSaved?: (business: BusinessData) => void;
+}
+
+export function QuickStartForm({ onSaved }: QuickStartFormProps) {
   const {
     businessData,
     dataSources,
@@ -136,10 +140,10 @@ export function QuickStartForm() {
     updateExpense,
     setBusinessData,
     setDataSources,
+    markClean,
     setSaving,
     isSaving,
   } = useBusinessStore();
-  const router = useRouter();
 
   const [showOptional, setShowOptional] = useState(false);
   const [newExpenseName, setNewExpenseName] = useState("");
@@ -186,16 +190,29 @@ export function QuickStartForm() {
       }
 
       if (payload.business) {
-        setBusinessData(payload.business);
+        setBusinessData(payload.business, { markDirty: false });
       } else if (payload.businessId) {
-        setBusinessData({ id: payload.businessId });
+        setBusinessData({ id: payload.businessId }, { markDirty: false });
       }
 
       if (payload.dataSources) {
-        setDataSources(payload.dataSources);
+        setDataSources(payload.dataSources, { markDirty: false });
       }
 
-      router.push("/simulate");
+      markClean();
+
+      const savedBusiness: BusinessData | null = payload.business
+        ? (payload.business as BusinessData)
+        : payload.businessId
+          ? ({
+              ...(businessData as BusinessData),
+              id: payload.businessId,
+            } as BusinessData)
+          : null;
+
+      if (savedBusiness && onSaved) {
+        onSaved(savedBusiness);
+      }
     } catch (error) {
       setSaveError(
         error instanceof Error ? error.message : "Failed to save business data"

@@ -21,9 +21,14 @@ import type { Scenario, ScenarioVariable } from "@/lib/types";
 interface ScenarioWizardProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  businessId?: string | null;
 }
 
-export function ScenarioWizard({ open, onOpenChange }: ScenarioWizardProps) {
+export function ScenarioWizard({
+  open,
+  onOpenChange,
+  businessId,
+}: ScenarioWizardProps) {
   const [step, setStep] = useState(0);
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
@@ -33,6 +38,7 @@ export function ScenarioWizard({ open, onOpenChange }: ScenarioWizardProps) {
 
   const { addScenario } = useScenarioStore();
   const { businessData } = useBusinessStore();
+  const resolvedBusinessId = businessId ?? businessData.id;
 
   const reset = useCallback(() => {
     setStep(0);
@@ -75,7 +81,7 @@ export function ScenarioWizard({ open, onOpenChange }: ScenarioWizardProps) {
   }, []);
 
   const handleSave = useCallback(async () => {
-    if (!businessData.id) {
+    if (!resolvedBusinessId) {
       setSaveError("Save business data before creating scenarios.");
       return;
     }
@@ -86,7 +92,7 @@ export function ScenarioWizard({ open, onOpenChange }: ScenarioWizardProps) {
     const graphState = variablesToGraph(variables);
     const scenario: Scenario = {
       id: crypto.randomUUID(),
-      businessId: businessData.id,
+      businessId: resolvedBusinessId,
       name: name || "Untitled Scenario",
       description,
       variables,
@@ -122,7 +128,7 @@ export function ScenarioWizard({ open, onOpenChange }: ScenarioWizardProps) {
     } finally {
       setIsSaving(false);
     }
-  }, [businessData.id, name, description, variables, addScenario, handleClose]);
+  }, [resolvedBusinessId, name, description, variables, addScenario, handleClose]);
 
   const canNext = () => {
     switch (step) {
