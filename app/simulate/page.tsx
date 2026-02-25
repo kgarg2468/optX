@@ -38,6 +38,12 @@ import { ProjectListView } from "@/components/projects/ProjectListView";
 import { ProjectHeader } from "@/components/projects/ProjectHeader";
 import type { SimulationStatus } from "@/lib/types";
 import {
+  formatCompact,
+  formatCurrency,
+  formatPercent,
+  formatVarName,
+} from "@/lib/utils/format";
+import {
   Bar,
   BarChart,
   CartesianGrid,
@@ -191,13 +197,13 @@ function getHistogramBins(values: number[], binCount = 18): { bin: string; count
     const start = min + idx * width;
     const end = start + width;
     return {
-      bin: `${start.toFixed(0)}-${end.toFixed(0)}`,
+      bin: `${formatCompact(start)}-${formatCompact(end)}`,
       count,
     };
   });
 }
 
-function formatMetric(value: number, digits = 2): string {
+function formatDecimal(value: number, digits = 2): string {
   return Number.isFinite(value) ? value.toFixed(digits) : "0.00";
 }
 
@@ -640,7 +646,7 @@ export default function SimulatePage() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {(config.confidenceLevel * 100).toFixed(0)}%
+              {formatPercent(config.confidenceLevel)}
             </div>
           </CardContent>
         </Card>
@@ -717,36 +723,38 @@ export default function SimulatePage() {
                       return (
                         <Card key={result.variable}>
                           <CardHeader>
-                            <CardTitle className="text-sm">{result.variable}</CardTitle>
+                            <CardTitle className="text-sm">
+                              {formatVarName(result.variable)}
+                            </CardTitle>
                           </CardHeader>
                           <CardContent className="space-y-4">
                             <div className="grid gap-3 sm:grid-cols-3">
                               <div className="rounded-md border p-3">
                                 <p className="text-xs text-muted-foreground">Mean</p>
                                 <p className="text-sm font-semibold">
-                                  {formatMetric(result.mean)}
+                                  {formatCurrency(result.mean)}
                                 </p>
                               </div>
                               <div className="rounded-md border p-3">
                                 <p className="text-xs text-muted-foreground">Median</p>
                                 <p className="text-sm font-semibold">
-                                  {formatMetric(result.median)}
+                                  {formatCurrency(result.median)}
                                 </p>
                               </div>
                               <div className="rounded-md border p-3">
                                 <p className="text-xs text-muted-foreground">Std Dev</p>
                                 <p className="text-sm font-semibold">
-                                  {formatMetric(result.std)}
+                                  {formatCurrency(result.std)}
                                 </p>
                               </div>
                             </div>
 
                             <div className="grid gap-2 text-xs text-muted-foreground sm:grid-cols-5">
-                              <div>P5: {formatMetric(result.p5)}</div>
-                              <div>P25: {formatMetric(result.p25)}</div>
-                              <div>P50: {formatMetric(result.p50)}</div>
-                              <div>P75: {formatMetric(result.p75)}</div>
-                              <div>P95: {formatMetric(result.p95)}</div>
+                              <div>P5: {formatCurrency(result.p5)}</div>
+                              <div>P25: {formatCurrency(result.p25)}</div>
+                              <div>P50: {formatCurrency(result.p50)}</div>
+                              <div>P75: {formatCurrency(result.p75)}</div>
+                              <div>P95: {formatCurrency(result.p95)}</div>
                             </div>
 
                             {histogramData.length > 0 ? (
@@ -803,6 +811,7 @@ export default function SimulatePage() {
                                 <YAxis
                                   dataKey="variable"
                                   type="category"
+                                  tickFormatter={formatVarName}
                                   tick={{ fontSize: 11 }}
                                   width={120}
                                 />
@@ -832,15 +841,17 @@ export default function SimulatePage() {
                             {sensitivityResults.map((result) => (
                               <tr key={result.variable} className="border-t">
                                 <td className="p-3">{result.rank}</td>
-                                <td className="p-3 font-medium">{result.variable}</td>
-                                <td className="p-3 text-right">
-                                  {formatMetric(result.sobolIndex, 4)}
+                                <td className="p-3 font-medium">
+                                  {formatVarName(result.variable)}
                                 </td>
                                 <td className="p-3 text-right">
-                                  {formatMetric(result.totalSobolIndex, 4)}
+                                  {formatDecimal(result.sobolIndex, 4)}
                                 </td>
                                 <td className="p-3 text-right">
-                                  {formatMetric(result.morrisScreening, 4)}
+                                  {formatDecimal(result.totalSobolIndex, 4)}
+                                </td>
+                                <td className="p-3 text-right">
+                                  {formatDecimal(result.morrisScreening, 4)}
                                 </td>
                               </tr>
                             ))}
@@ -893,7 +904,7 @@ export default function SimulatePage() {
                                 {edge.to}
                               </p>
                               <p className="text-xs text-muted-foreground">
-                                Strength: {formatMetric(edge.strength, 3)}
+                                Strength: {formatDecimal(edge.strength, 3)}
                               </p>
                               {edge.description ? (
                                 <p className="mt-1 text-xs text-muted-foreground">
@@ -922,7 +933,7 @@ export default function SimulatePage() {
                       </CardHeader>
                       <CardContent>
                         <p className="text-xl font-semibold">
-                          {(backtestData.accuracy * 100).toFixed(1)}%
+                          {formatPercent(backtestData.accuracy)}
                         </p>
                       </CardContent>
                     </Card>
@@ -934,7 +945,7 @@ export default function SimulatePage() {
                       </CardHeader>
                       <CardContent>
                         <p className="text-xl font-semibold">
-                          {formatMetric(backtestData.brierScore, 4)}
+                          {formatDecimal(backtestData.brierScore, 4)}
                         </p>
                       </CardContent>
                     </Card>
@@ -946,7 +957,7 @@ export default function SimulatePage() {
                       </CardHeader>
                       <CardContent>
                         <p className="text-xl font-semibold">
-                          {formatMetric(backtestData.ensembleDisagreement, 4)}
+                          {formatDecimal(backtestData.ensembleDisagreement, 4)}
                         </p>
                       </CardContent>
                     </Card>
@@ -966,7 +977,12 @@ export default function SimulatePage() {
                               <CartesianGrid strokeDasharray="3 3" />
                               <XAxis dataKey="period" tick={{ fontSize: 11 }} />
                               <YAxis />
-                              <Tooltip />
+                              <Tooltip
+                                formatter={(value, name) => [
+                                  formatCurrency(toNumber(value)),
+                                  formatVarName(String(name)),
+                                ]}
+                              />
                               <Line
                                 type="monotone"
                                 dataKey="predicted"
@@ -1001,7 +1017,7 @@ export default function SimulatePage() {
                       </CardHeader>
                       <CardContent className="space-y-2">
                         <p className="text-2xl font-semibold">
-                          {(agentData.convergenceScore * 100).toFixed(1)}%
+                          {formatPercent(agentData.convergenceScore)}
                         </p>
                         <Progress value={agentData.convergenceScore * 100} />
                       </CardContent>
@@ -1038,7 +1054,7 @@ export default function SimulatePage() {
                             <div className="mb-1 flex items-center justify-between gap-2">
                               <p className="text-sm font-medium">{finding.summary}</p>
                               <Badge variant="secondary">
-                                {(finding.confidence * 100).toFixed(0)}%
+                                {formatPercent(finding.confidence)}
                               </Badge>
                             </div>
                             {finding.details ? (
