@@ -14,7 +14,7 @@ An AI-powered platform that ingests company data across financial, contextual, a
 | **State** | Zustand | Lightweight, perfect for graph + simulation state |
 | **Styling** | Vanilla CSS (custom design system) | Premium dark-mode UI |
 | **Simulation** | TypeScript (browser) + Python (server) | Monte Carlo, Bayesian, RL on server |
-| **AI** | Claude API (via Anthropic SDK) | Chat, scenario generation, analysis |
+| **AI** | OpenAI API (gpt-4o / gpt-4o-mini) | Chat, scenario generation, analysis |
 | **Database** | SQLite (via better-sqlite3) for MVP | Simple local persistence |
 
 ---
@@ -288,7 +288,7 @@ Node categories: Financial, Market, Brand, Operations, Logic, Metrics. Each node
 
 ### Phase 4 — AI Chat & Interaction
 
-Right-side chat panel. Context-aware "what if" modifications. Streams from Claude. Can modify scenario graph in real-time.
+Right-side chat panel. Context-aware "what if" modifications. Streams from OpenAI (gpt-4o). Can modify scenario graph in real-time.
 
 ---
 
