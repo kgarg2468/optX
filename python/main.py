@@ -118,7 +118,7 @@ class ExtractVariablesRequest(BaseModel):
 
 
 async def verify_token(
-    credentials: HTTPAuthorizationCredentials | None = Security(security),
+    credentials: Optional[HTTPAuthorizationCredentials] = Security(security),
 ) -> None:
     if not API_AUTH_TOKEN:
         return
