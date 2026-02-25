@@ -14,6 +14,8 @@ import type {
 
 const PYTHON_API_URL = process.env.PYTHON_API_URL || "http://localhost:8000";
 
+type UnknownRecord = Record<string, unknown>;
+
 function isValidUuid(value: unknown): value is string {
   return (
     typeof value === "string" &&
@@ -21,6 +23,93 @@ function isValidUuid(value: unknown): value is string {
       value
     )
   );
+}
+
+function asRecord(value: unknown): UnknownRecord {
+  return (value && typeof value === "object" ? value : {}) as UnknownRecord;
+}
+
+function toNumber(value: unknown, fallback = 0): number {
+  if (typeof value === "number" && Number.isFinite(value)) return value;
+  if (typeof value === "string") {
+    const parsed = Number(value);
+    if (Number.isFinite(parsed)) return parsed;
+  }
+  return fallback;
+}
+
+function toBoolean(value: unknown, fallback = false): boolean {
+  if (typeof value === "boolean") return value;
+  if (typeof value === "string") {
+    if (value.toLowerCase() === "true") return true;
+    if (value.toLowerCase() === "false") return false;
+  }
+  if (typeof value === "number") return value !== 0;
+  return fallback;
+}
+
+function normalizeMonteCarlo(input: unknown): UnknownRecord[] {
+  if (!Array.isArray(input)) return [];
+
+  return input.map((item) => {
+    const row = asRecord(item);
+    const distribution = Array.isArray(row.distribution) ? row.distribution : [];
+    const rawSamples = Array.isArray(row.raw_samples)
+      ? row.raw_samples
+      : Array.isArray(row.rawSamples)
+        ? row.rawSamples
+        : [];
+
+    return {
+      ...row,
+      distribution: distribution.length ? distribution : rawSamples,
+      raw_samples: rawSamples,
+      rawSamples: rawSamples,
+    };
+  });
+}
+
+function normalizeBacktest(input: unknown): BacktestResult & UnknownRecord {
+  const backtest = asRecord(input);
+  const calibrationData = Array.isArray(backtest.calibrationData)
+    ? backtest.calibrationData
+    : Array.isArray(backtest.calibration_data)
+      ? backtest.calibration_data
+      : [];
+  const rawWalkForward = Array.isArray(backtest.walkForwardResults)
+    ? backtest.walkForwardResults
+    : Array.isArray(backtest.walk_forward_results)
+      ? backtest.walk_forward_results
+      : [];
+
+  const walkForwardResults = rawWalkForward.map((item, index) => {
+    const point = asRecord(item);
+    return {
+      period:
+        typeof point.period === "string" ? point.period : `t+${index + 1}`,
+      predicted: toNumber(point.predicted),
+      actual: toNumber(point.actual),
+    };
+  });
+
+  const normalized = {
+    ...backtest,
+    accuracy: toNumber(backtest.accuracy),
+    brierScore: toNumber(backtest.brierScore ?? backtest.brier_score),
+    calibrationData,
+    ensembleDisagreement: toNumber(
+      backtest.ensembleDisagreement ?? backtest.ensemble_disagreement
+    ),
+    walkForwardResults,
+  };
+
+  return {
+    ...normalized,
+    brier_score: normalized.brierScore,
+    calibration_data: normalized.calibrationData,
+    ensemble_disagreement: normalized.ensembleDisagreement,
+    walk_forward_results: normalized.walkForwardResults,
+  };
 }
 
 const DEFAULT_AGENT_ANALYSIS: AgentCoordinatorOutput = {
@@ -72,16 +161,19 @@ function parsePythonError(status: number, bodyText: string): string {
 }
 
 function toSimulationResult(row: Record<string, unknown>): SimulationResult {
+  const monteCarlo = normalizeMonteCarlo(row.monte_carlo ?? row.monteCarlo);
+  const backtest = normalizeBacktest(row.backtest ?? row.backtest_result);
+
   return {
     id: String(row.id),
     businessId: String(row.business_id),
     scenarioId: (row.scenario_id as string) || undefined,
     config: (row.config as SimulationConfig) || normalizeConfig(undefined),
     status: (row.status as SimulationStatus) || "idle",
-    monteCarlo: (row.monte_carlo as MonteCarloResult[]) || [],
+    monteCarlo: monteCarlo as unknown as MonteCarloResult[],
     bayesianNetwork: (row.bayesian_network as BayesianNetworkResult) || DEFAULT_BAYESIAN,
     sensitivity: (row.sensitivity as SensitivityResult[]) || [],
-    backtest: (row.backtest as BacktestResult) || DEFAULT_BACKTEST,
+    backtest: (backtest as BacktestResult) || DEFAULT_BACKTEST,
     agentAnalysis:
       (row.agent_analysis as AgentCoordinatorOutput) || DEFAULT_AGENT_ANALYSIS,
     createdAt: String(row.created_at || new Date().toISOString()),
@@ -96,6 +188,9 @@ export async function POST(request: NextRequest) {
     const businessId = body.businessId;
     const scenarioId = body.scenarioId;
     const config = normalizeConfig(body.config);
+    const includeAgentEnrichment = toBoolean(
+      body.includeAgentEnrichment ?? body.include_agent_enrichment
+    );
 
     if (!isValidUuid(businessId)) {
       return NextResponse.json(
@@ -164,6 +259,7 @@ export async function POST(request: NextRequest) {
     const pythonPayload = {
       business_id: businessId,
       scenario_id: scenarioId ?? null,
+      include_agent_enrichment: includeAgentEnrichment,
       config: {
         iterations: config.iterations,
         time_horizon_months: config.timeHorizonMonths,
@@ -208,16 +304,16 @@ export async function POST(request: NextRequest) {
     const status =
       ((result.status as SimulationStatus) || "complete") as SimulationStatus;
 
+    const monteCarlo = normalizeMonteCarlo(result.monteCarlo ?? result.monte_carlo);
+    const backtest = normalizeBacktest(result.backtest ?? result.backtest_result);
+
     const simulationRow = {
       id: simulationId,
       business_id: businessId,
       scenario_id: scenarioId ?? null,
       config,
       status,
-      monte_carlo:
-        (result.monteCarlo as MonteCarloResult[]) ||
-        (result.monte_carlo as MonteCarloResult[]) ||
-        [],
+      monte_carlo: monteCarlo,
       bayesian_network:
         (result.bayesianNetwork as BayesianNetworkResult) ||
         (result.bayesian_network as BayesianNetworkResult) ||
@@ -226,10 +322,7 @@ export async function POST(request: NextRequest) {
         (result.sensitivity as SensitivityResult[]) ||
         (result.sensitivity_analysis as SensitivityResult[]) ||
         [],
-      backtest:
-        (result.backtest as BacktestResult) ||
-        (result.backtest_result as BacktestResult) ||
-        DEFAULT_BACKTEST,
+      backtest,
       agent_analysis:
         (result.agentAnalysis as AgentCoordinatorOutput) ||
         (result.agent_analysis as AgentCoordinatorOutput) ||

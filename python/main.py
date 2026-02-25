@@ -383,9 +383,13 @@ def _run_simulation_layers(
         include_raw_samples=True,
     )
     monte_payload = [asdict(result) for result in monte_results]
-    if not config.include_raw_samples:
-        for result in monte_payload:
-            result.pop("raw_samples", None)
+    # Always include a condensed sample (max 500 points) for histogram rendering
+    max_histogram_samples = 500
+    for result in monte_payload:
+        raw = result.get("raw_samples")
+        if raw and len(raw) > max_histogram_samples:
+            step = len(raw) // max_histogram_samples
+            result["raw_samples"] = raw[::step][:max_histogram_samples]
 
     bayesian_engine = BayesianEngine()
     bayesian_engine.build_default_structure(universe.variables)
