@@ -1,0 +1,73 @@
+{
+    "businessData": {
+        "name": "Riverside Coffee Co.",
+        "industry": "food_beverage",
+        "size": "6-20",
+        "monthly_revenue": [
+            48200,
+            51300,
+            49800,
+            53100,
+            55400,
+            52000,
+            56800,
+            54200,
+            50900,
+            57300,
+            59100,
+            61500
+        ],
+        "expenses": [
+            {
+                "name": "Rent",
+                "amount": 5500
+            },
+            {
+                "name": "Payroll",
+                "amount": 22000
+            },
+            {
+                "name": "COGS",
+                "amount": 15000
+            },
+            {
+                "name": "Marketing",
+                "amount": 2500
+            },
+            {
+                "name": "Utilities",
+                "amount": 1200
+            },
+            {
+                "name": "Insurance",
+                "amount": 800
+            },
+            {
+                "name": "Equipment Maintenance",
+                "amount": 600
+            }
+        ],
+        "cash_on_hand": 95000,
+        "outstanding_debt": 45000
+    },
+    "config": {
+        "iterations": 10000,
+        "timeHorizonMonths": 12,
+        "confidenceLevel": 0.95,
+        "includeRawSamples": false
+    },
+    "scenarioVariables": [],
+    "businessId": "demo-riverside-coffee",
+    "includeAgentEnrichment": false,
+    "_demo_notes": {
+        "description": "Pre-loaded seed data for the UCR AI Tech Venture Challenge demo.",
+        "persona": "Riverside Coffee Co. — a 15-employee coffee shop in Riverside, CA considering opening a second location.",
+        "talking_points": [
+            "12 months of revenue history showing natural growth trend ($48K → $61K)",
+            "7 expense categories for interesting sensitivity analysis",
+            "Moderate debt ($45K) and healthy cash position ($95K)",
+            "COGS + Payroll will dominate sensitivity — good visual"
+        ],
+        "demo_scenario_prompt": "What happens if I increase marketing spend by 30% and open a second location with $80K upfront investment?"
+    }
+}

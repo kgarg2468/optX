@@ -1,0 +1,404 @@
+# OptX Pitch Deck PRD — UCR AI Tech Venture Challenge
+
+> **Event**: AI Tech Venture Challenge (Season 3) — Feb 27, 2026
+> **Format**: 6 minutes total → **3 min pitch deck** + **3 min live demo**
+> **Venue**: UCR School of Business, Auditorium 165
+
+---
+
+## Strategic Framing
+
+### What Judges Care About
+
+Based on the [research report](file:///Users/krishgarg/Documents/Projects/optX/UCR%20AI%20Tech%20Venture%20Research%20Report.md), judges evaluate on **innovation, feasibility, and impact**. The current panel is heavily industry-facing:
+
+| Judge | Lens They'll Apply | What Will Impress Them |
+|-------|-------------------|----------------------|
+| **Nathan Trueblood** (CPO, Enkrypt AI) | MVP feasibility, product strategy, responsible AI | Show a real product architecture, not a concept slide |
+| **Sid Nair** (SVP Product, CenTrak) | Product-market fit, enterprise deployment | Show clear customer pain → solution → defensibility |
+| **Travis Johnson** (Co-Founder, AuraPath AI) | ROI, adoption path, product narrative | Frame OptX as a tool businesses would *pay for today* |
+| **Aaron Saltzman** (CMO, DK Global) | Storytelling, go-to-market, positioning | Make the pitch *feel* investable, not academic |
+| **Andrew Borene** (Exec Dir, Ocient) | Security, data integrity, real-world constraints | Mention data privacy, security posture briefly |
+| **Sanjoy Moulik** (INSPIRE Lab, UCR) | Applied AI, practical execution | Show the math pipeline is real, not just a slide |
+| **Rich Yueh** (UCR Faculty) | Demo execution quality, technical credibility | He specifically values walkthrough demos |
+
+### Key Takeaway
+
+> [!IMPORTANT]
+> **Last year's winner** built "software verification using AI agents" and won by showing a **walkthrough demo video**. Rich Yueh specifically praised the demo artifact. Your live demo is your biggest weapon — the pitch deck exists to set it up.
+
+### Positioning Statement
+
+> OptX is an AI-powered business simulation platform that ingests a company's financial data, runs a 5-layer mathematical pipeline (Monte Carlo, Bayesian networks, sensitivity analysis, backtesting), and uses 6 specialized AI agents to generate actionable "what-if" scenarios — turning weeks of consulting work into minutes.
+
+---
+
+## Pitch Deck Structure (3 minutes, 6 slides)
+
+> [!TIP]
+> **30 seconds per slide**. No slide should have more than 3 bullet points. The deck sets up the demo — it should leave judges *wanting to see the product*.
+
+### Slide 1 — The Hook (0:00–0:30)
+
+**Title**: "What if every small business had a Goldman Sachs simulation desk?"
+
+**Content**:
+- **The problem**: Businesses make $100K+ decisions with spreadsheets and gut feeling. Only Fortune 500 companies can afford Monte Carlo simulation teams and strategy consultants.
+- **The gap**: 33M small businesses in the US have no access to enterprise-grade financial simulation.
+- **One line**: "OptX democratizes quantitative business simulation."
+
+**Talking point**: *"A restaurant owner deciding whether to open a second location shouldn't need a McKinsey engagement to model the risk. Today, they use a spreadsheet. We think they deserve the same tools Goldman Sachs uses."*
+
+---
+
+### Slide 2 — What OptX Does (0:30–1:00)
+
+**Title**: "AI + Math, Working Together"
+
+**Visual**: The pipeline diagram (simplified)
+
+```
+📊 Your Data → 🔬 5-Layer Math Engine → 🤖 6 AI Agents → 📈 Actionable Scenarios
+```
+
+**3 bullets**:
+1. **Ingest any business data** — financial statements, POS, market signals, custom documents
+2. **Run rigorous simulations** — 10,000-iteration Monte Carlo with Bayesian causal reasoning
+3. **Get AI-driven "what-if" scenarios** — 6 specialized agents (market, financial, growth, risk, brand, operations) debate to find optimal strategies
+
+**Talking point**: *"This isn't just another AI chatbot wrapper. OptX combines a real mathematical simulation engine — Monte Carlo, Bayesian networks, sensitivity analysis, backtesting — with a multi-agent AI system where 6 specialized agents analyze, debate, and converge on recommendations."*
+
+---
+
+### Slide 3 — How It's Different (1:00–1:30)
+
+**Title**: "Not a Dashboard. A Simulation Desk."
+
+| | Spreadsheets | BI Tools (Tableau) | Consultants | **OptX** |
+|--|---|---|---|---|
+| **Predictive** | ❌ | ❌ | ✅ | ✅ |
+| **What-if scenarios** | Manual | ❌ | Slow (weeks) | **Instant** |
+| **Cost** | Free | $70/mo | $50K+ | **$X/mo** |
+| **AI-driven insights** | ❌ | ❌ | ❌ | ✅ |
+| **Mathematical rigor** | ❌ | ❌ | ✅ | ✅ |
+
+**Talking point**: *"Spreadsheets can't predict. Tableau can't simulate. Consultants charge $50K and take 6 weeks. OptX runs 10,000 simulations in under a minute with 6 AI agents analyzing the results."*
+
+---
+
+### Slide 4 — The Tech (1:30–2:00)
+
+**Title**: "5-Layer Math Pipeline"
+
+**Visual**: Vertical flow diagram
+
+```mermaid
+graph TD
+    A["Variable Universe"] --> B["Monte Carlo\n10K iterations"]
+    B --> C["Bayesian Network\nCausal reasoning"]
+    C --> D["Sensitivity Analysis\nWhat actually matters"]
+    D --> E["Backtesting\nProve accuracy"]
+```
+
+**Key callouts** (pick 2):
+- Gaussian copulas preserve variable correlations — revenue doesn't vary independently of market sentiment
+- Sobol sensitivity indices tell you *which* variables drive 80% of your outcome
+- Walk-forward backtesting proves model accuracy on historical data
+
+**Talking point**: *"This isn't a toy model. We use Gaussian copulas to preserve correlations between variables, Sobol indices to identify which factors actually drive your bottom line, and walk-forward backtesting to mathematically prove our predictions are accurate."*
+
+---
+
+### Slide 5 — Market & Traction (2:00–2:30)
+
+**Title**: "Who Needs This"
+
+**Target customers**:
+- **SMBs** ($1M–$50M revenue) making expansion/pricing/hiring decisions
+- **Startup founders** modeling runway, fundraising scenarios, unit economics
+- **Business consultants** who need faster simulation tools for clients
+
+**Market size** (quick):
+- 33M small businesses in the US
+- $68B management consulting market
+- $27B business intelligence market
+
+**Traction** (adjust to actual):
+- Working MVP with live simulation engine
+- Built with Next.js + Python FastAPI + OpenAI
+- Developed through UCR INSPIRE Lab ecosystem
+
+---
+
+### Slide 6 — The Ask + Transition to Demo (2:30–3:00)
+
+**Title**: "Let Me Show You"
+
+- **What we're building toward**: A platform where any business owner can upload their data and get Fortune 500-grade simulation insights in minutes
+- **What INSPIRE Lab means to us**: Continued development, user testing, pilot customers
+- **Transition**: *"But don't take my word for it — let me show you OptX live."*
+
+---
+
+## Live Demo Flow (3 minutes)
+
+> [!IMPORTANT]
+> You said: *"I pretend to be a company and enter my financial info, then simulations, then financial reports."* Below is the exact flow, timed.
+
+### Demo Minute 1 — Data Ingestion (0:00–1:00)
+
+**What you do**:
+1. Open OptX → Dashboard (show the premium dark UI, ~5 sec)
+2. Navigate to **Data** page → Enter company name: *"Riverside Coffee Co."*
+3. Select industry: *"Food & Beverage"*
+4. Click **Income Statement** box → Enter monthly revenue (~$50K), expenses (rent, payroll, marketing)
+5. Click **Cash Flow** box → Enter cash on hand ($100K), debt ($50K)
+
+**What you say**: *"I'm a coffee shop owner in Riverside thinking about opening a second location. I enter my financials — income statement, cash flow. OptX auto-detects my data patterns and builds a variable universe with probability distributions for each metric."*
+
+### Demo Minute 2 — Run Simulation (1:00–2:00)
+
+**What you do**:
+1. Navigate to **Simulate** → Run simulation
+2. Show the progress indicator (Monte Carlo running → Bayesian → Sensitivity → Backtest)
+3. When complete, show the **results**: fan charts with confidence intervals (P5–P95)
+4. Point to the sensitivity tornado chart: *"Raw material costs drive 40% of my outcome"*
+
+**What you say**: *"OptX runs 10,000 Monte Carlo simulations in seconds. It shows me my revenue forecast with confidence intervals — not a single number, but a range of outcomes. And the sensitivity analysis tells me which variables I should actually focus on."*
+
+### Demo Minute 3 — AI Agents + Scenario (2:00–3:00)
+
+**What you do**:
+1. Show the **n8n-style graph editor** with scenario nodes
+2. Show the **AI chat panel** → Ask: *"What happens if I increase marketing spend by 30%?"*
+3. Show the agent analysis: 6 agents (market, financial, growth, risk, brand, operations) providing insights
+4. Point to agent debate/convergence
+
+**What you say**: *"Now here's where it gets powerful. I can ask OptX natural-language 'what-if' questions. Six AI agents — each specialized in a different domain — analyze the scenario, debate with each other, and converge on a recommendation. This is the market agent saying revenue goes up 15%, but the risk agent warning about cash flow pressure. They debate until they reach consensus."*
+
+### Demo Close
+
+*"That's OptX — the simulation desk every business deserves. Thank you."*
+
+---
+
+## Pre-Demo Checklist
+
+- [ ] Both servers running (Next.js on :3000, Python on :8000)
+- [ ] Pre-loaded test data for "Riverside Coffee Co." (so you don't type everything live)
+- [ ] OpenAI API key loaded and working (test `/chat` endpoint beforehand)
+- [ ] Simulation runs successfully end-to-end before going on stage
+- [ ] Practice the 6-minute run at least 3 times — if you go over, cut from Slide 5 (market)
+- [ ] Have a backup screen recording of the full demo in case of technical failure
+
+> [!CAUTION]
+> **Backup plan**: If the live demo breaks, immediately switch to: *"Let me show you the recording we prepared."* Never fumble on stage. Have the screen recording ready in a separate tab.
+
+---
+
+## Winning Strategy Summary
+
+| Criterion | How OptX Wins |
+|-----------|---------------|
+| **Innovation** | AI + Math hybrid (not just another LLM wrapper). 5-layer pipeline + 6-agent debate system is novel. |
+| **Feasibility** | Working MVP with live demo. Real code, real simulation engine, real AI agents. |
+| **Impact** | Democratizes Fortune 500 simulation tools for 33M small businesses. Clear market need. |
+
+> [!TIP]
+> The single biggest differentiator from other student projects: **OptX is not a ChatGPT wrapper**. The math pipeline (Monte Carlo, Bayesian, Sobol, backtesting) is the moat. Hammer this point. Every competitor will have "AI" — nobody else will have rigorous mathematical simulation underneath.
+
+---
+
+## Proposed Slide Content
+
+> Copy-ready text for each slide. Design direction: **dark theme**, minimal text, bold typography, accent gradients matching the OptX UI.
+
+---
+
+### SLIDE 1 — THE HOOK
+
+**Headline (large, centered)**:
+```
+What if every small business
+had a Goldman Sachs simulation desk?
+```
+
+**Subtext (smaller, below)**:
+```
+33 million US businesses make critical decisions
+with spreadsheets and gut feeling.
+
+OptX changes that.
+```
+
+**Visual**: Split screen — left side shows a messy spreadsheet, right side shows the OptX dark UI with fan charts and glowing nodes.
+
+**Speaker notes**: *"A restaurant owner deciding whether to open a second location shouldn't need a McKinsey engagement to model the risk. Today, they use a spreadsheet — maybe a pivot table if they're lucky. We think they deserve the same quantitative tools that Goldman Sachs uses on their trading desk. That's OptX."*
+
+---
+
+### SLIDE 2 — WHAT OPTX DOES
+
+**Headline**:
+```
+AI + Math. Working Together.
+```
+
+**Visual**: Horizontal pipeline with icons
+
+```
+┌─────────────┐    ┌──────────────────┐    ┌─────────────────┐    ┌──────────────────┐
+│  📊 Ingest   │ →  │  🔬 5-Layer Math  │ →  │  🤖 6 AI Agents  │ →  │  📈 Scenarios     │
+│  Your Data   │    │  Engine           │    │  Analyze & Debate│    │  & Reports        │
+└─────────────┘    └──────────────────┘    └─────────────────┘    └──────────────────┘
+```
+
+**Three bullet points (spread across the slide)**:
+
+```
+① Upload your financials — income statements, cash flow, POS, even custom documents.
+
+② We run 10,000 Monte Carlo simulations with Bayesian causal reasoning.
+
+③ Six AI agents (market, financial, growth, risk, brand, operations) debate
+   and converge on what you should do next.
+```
+
+**Speaker notes**: *"This isn't just another chatbot wrapper. OptX combines a real mathematical simulation engine — Monte Carlo, Bayesian networks, sensitivity analysis, backtesting — with a multi-agent AI system. Six agents, each specialized in a different domain, analyze your simulation results, debate with each other, and converge on actionable recommendations."*
+
+---
+
+### SLIDE 3 — HOW IT'S DIFFERENT
+
+**Headline**:
+```
+Not a Dashboard. A Simulation Desk.
+```
+
+**Visual**: 4-column comparison (cards or table)
+
+```
+  SPREADSHEETS        TABLEAU           CONSULTANTS         OPTX
+  ─────────────       ─────────────     ─────────────       ─────────────
+  ❌ Can't predict     ❌ Can't predict   ✅ Predictive       ✅ Predictive
+  ❌ No scenarios      ❌ No scenarios    ⏳ Weeks to build   ⚡ Instant
+  ❌ No AI insights    ❌ No AI insights  ❌ No AI            ✅ 6 AI agents
+  Free                $70/mo            $50,000+            Coming soon
+```
+
+**Speaker notes**: *"Spreadsheets can't predict the future. Tableau shows you what happened — not what will happen. Consultants charge $50K and take six weeks to build one scenario. OptX runs 10,000 simulations in under a minute and has 6 AI agents analyzing the results. We're not replacing dashboards — we're building the simulation desk that sits on top."*
+
+---
+
+### SLIDE 4 — THE TECH
+
+**Headline**:
+```
+5-Layer Math Pipeline
+```
+
+**Visual**: Vertical flowchart with glowing nodes (match the OptX graph editor aesthetic)
+
+```
+         ┌─────────────────────────┐
+         │  1. Variable Universe   │  ← Every data point becomes a variable
+         │     Build distributions │    with a probability distribution
+         └──────────┬──────────────┘
+                    ▼
+         ┌─────────────────────────┐
+         │  2. Monte Carlo         │  ← 10,000 iterations
+         │     Gaussian copulas    │    Correlations preserved
+         └──────────┬──────────────┘
+                    ▼
+         ┌─────────────────────────┐
+         │  3. Bayesian Network    │  ← Causal DAG
+         │     Cause → Effect      │    "Marketing ↑ → Revenue ↑"
+         └──────────┬──────────────┘
+                    ▼
+         ┌─────────────────────────┐
+         │  4. Sensitivity         │  ← Sobol indices
+         │     What actually       │    "40% driven by material costs"
+         │     matters?            │
+         └──────────┬──────────────┘
+                    ▼
+         ┌─────────────────────────┐
+         │  5. Backtesting         │  ← Walk-forward validation
+         │     Prove accuracy      │    "87% within ±5% of actual"
+         └─────────────────────────┘
+```
+
+**Speaker notes**: *"Let me walk you through the math. Layer 1: every data point — revenue, rent, market sentiment — becomes a variable with a probability distribution. Layer 2: Monte Carlo runs 10,000 simulated futures, preserving correlations using Gaussian copulas so revenue and market sentiment move together realistically. Layer 3: Bayesian networks encode cause-and-effect — marketing spend causes revenue changes, not just correlates. Layer 4: Sobol sensitivity indices tell you which variable drives 80% of your outcome — actionable, not just interesting. Layer 5: walk-forward backtesting proves accuracy on your own historical data. This isn't a toy."*
+
+> [!TIP]
+> **If running short on time**: Say only the bold headline and one sentence: *"We run a 5-layer math pipeline — Monte Carlo with copulas, Bayesian causal networks, sensitivity analysis, and backtesting — all on your real data. Let me show you."* Then move to demo.
+
+---
+
+### SLIDE 5 — MARKET & TRACTION
+
+**Headline**:
+```
+Built for 33M Small Businesses
+```
+
+**Visual**: Three stat cards
+
+```
+┌───────────────┐  ┌───────────────┐  ┌───────────────┐
+│   33M          │  │   $68B         │  │   $27B         │
+│   Small        │  │   Consulting   │  │   Business     │
+│   Businesses   │  │   Market       │  │   Intelligence │
+│   in the US    │  │   (TAM)        │  │   Market       │
+└───────────────┘  └───────────────┘  └───────────────┘
+```
+
+**Below the cards**:
+```
+Target: SMBs ($1M–$50M revenue) making expansion, pricing, and hiring decisions.
+
+Status: Working MVP • Next.js + Python + OpenAI • Live simulation engine
+```
+
+**Speaker notes**: *"Our initial target is SMBs with $1M to $50M in revenue — businesses big enough to have real financial data, but too small to hire McKinsey. That's 33 million businesses in the US alone, sitting at the intersection of a $68 billion consulting market and a $27 billion BI market. We have a working MVP today."*
+
+> [!TIP]
+> **This is the cuttable slide.** If you're at 2:15 and need time, skip this and go straight to Slide 6. The demo proves more than any market size number.
+
+---
+
+### SLIDE 6 — THE ASK + TRANSITION
+
+**Headline**:
+```
+Let Me Show You.
+```
+
+**Subtext**:
+```
+OptX: The simulation desk every business deserves.
+```
+
+**Below (small, bottom of slide)**:
+```
+Built at UCR  •  Seeking INSPIRE Lab partnership for user pilots
+```
+
+**Speaker notes**: *"We're not here to show you a concept deck. We have a working product. Our ask is simple — a spot with INSPIRE Lab to run pilot tests with real businesses and refine the platform. But don't take my word for it. Let me show you OptX, live."*
+
+**[TRANSITION: Switch to browser with OptX loaded]**
+
+---
+
+### Design Direction Summary
+
+| Element | Specification |
+|---------|--------------|
+| **Background** | Dark (#0a0a0a or match OptX `globals.css`) |
+| **Primary font** | Inter or Geist (match the app) |
+| **Headlines** | 48–64pt, white, bold |
+| **Body text** | 18–24pt, #a1a1aa (zinc-400) |
+| **Accent** | Gradient from brand blue to purple |
+| **Max bullets per slide** | 3 |
+| **Animations** | Gentle fade-in only, no flashy transitions |
+| **Slide count** | Exactly 6 (hard limit for 3 minutes) |
+| **Aspect ratio** | 16:9 |
