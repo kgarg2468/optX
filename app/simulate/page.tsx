@@ -46,6 +46,7 @@ import {
 import {
   Bar,
   BarChart,
+  Cell,
   CartesianGrid,
   Line,
   LineChart,
@@ -56,6 +57,15 @@ import {
 } from "recharts";
 
 type UnknownRecord = Record<string, unknown>;
+
+type DisplayProjectionPoint = {
+  month: string;
+  p5: number;
+  p25: number;
+  p50: number;
+  p75: number;
+  p95: number;
+};
 
 type DisplayMonteCarlo = {
   variable: string;
@@ -68,6 +78,7 @@ type DisplayMonteCarlo = {
   p75: number;
   p95: number;
   distribution: number[];
+  timeSeriesProjection: DisplayProjectionPoint[];
 };
 
 type DisplaySensitivity = {
@@ -89,6 +100,8 @@ type DisplayBacktestPoint = {
   period: string;
   predicted: number;
   actual: number;
+  p5: number;
+  p95: number;
 };
 
 type DisplayBacktest = {
@@ -207,6 +220,107 @@ function formatDecimal(value: number, digits = 2): string {
   return Number.isFinite(value) ? value.toFixed(digits) : "0.00";
 }
 
+function getProjectionPoints(input: unknown): DisplayProjectionPoint[] {
+  if (!Array.isArray(input)) return [];
+
+  return input.map((item, index) => {
+    const point = asRecord(item);
+    const monthNum = Math.max(1, Math.trunc(toNumber(point.month, index + 1)));
+    const p50 = toNumber(point.p50 ?? point.median);
+    const p5Raw = toNumber(point.p5, p50);
+    const p95Raw = toNumber(point.p95, p50);
+    const p25Raw = toNumber(point.p25, p50);
+    const p75Raw = toNumber(point.p75, p50);
+
+    return {
+      month: `Month ${monthNum}`,
+      p5: Math.min(p5Raw, p95Raw),
+      p25: Math.min(p25Raw, p75Raw),
+      p50,
+      p75: Math.max(p25Raw, p75Raw),
+      p95: Math.max(p5Raw, p95Raw),
+    };
+  });
+}
+
+function getVariablePolarity(variable: string): "revenue" | "expense" | "other" {
+  const name = variable.toLowerCase();
+  if (
+    name.includes("revenue") ||
+    name.includes("sales") ||
+    name.includes("income")
+  ) {
+    return "revenue";
+  }
+  if (
+    name.includes("expense") ||
+    name.includes("cost") ||
+    name.includes("rent") ||
+    name.includes("debt") ||
+    name.includes("payroll") ||
+    name.includes("salary")
+  ) {
+    return "expense";
+  }
+  return "other";
+}
+
+function getMetricToneClasses(
+  variable: string,
+  value: number
+): { card: string; value: string } {
+  const polarity = getVariablePolarity(variable);
+  if (polarity === "other") {
+    return {
+      card: "border-border bg-card",
+      value: "text-foreground",
+    };
+  }
+
+  const favorable =
+    (polarity === "revenue" && value >= 0) ||
+    (polarity === "expense" && value < 0);
+
+  if (favorable) {
+    return {
+      card: "border-emerald-300/60 bg-emerald-50/50 dark:border-emerald-800/40 dark:bg-emerald-950/20",
+      value: "text-emerald-700 dark:text-emerald-300",
+    };
+  }
+
+  return {
+    card: "border-rose-300/60 bg-rose-50/50 dark:border-rose-800/40 dark:bg-rose-950/20",
+    value: "text-rose-700 dark:text-rose-300",
+  };
+}
+
+function toImpactColor(value: number, maxValue: number): string {
+  if (!Number.isFinite(value) || maxValue <= 0) return "hsl(8 65% 45%)";
+  const ratio = Math.max(0, Math.min(1, Math.abs(value) / maxValue));
+  const hue = 8 + ratio * 132; // red -> green
+  return `hsl(${hue} 72% 42%)`;
+}
+
+function formatStrengthPercent(value: number): string {
+  const normalized = Math.abs(value) <= 1 ? value * 100 : value;
+  const sign = normalized > 0 ? "+" : normalized < 0 ? "-" : "";
+  return `${sign}${Math.abs(normalized).toFixed(0)}%`;
+}
+
+function getAccuracyTone(accuracy: number): string {
+  const normalized = Math.abs(accuracy) <= 1 ? accuracy : accuracy / 100;
+  if (normalized > 0.8) return "bg-emerald-100 text-emerald-700 border-emerald-200";
+  if (normalized > 0.5) return "bg-amber-100 text-amber-700 border-amber-200";
+  return "bg-rose-100 text-rose-700 border-rose-200";
+}
+
+function getAccuracyTier(accuracy: number): "high" | "moderate" | "low" {
+  const normalized = Math.abs(accuracy) <= 1 ? accuracy : accuracy / 100;
+  if (normalized > 0.8) return "high";
+  if (normalized > 0.5) return "moderate";
+  return "low";
+}
+
 function getMonteCarloResults(rawResult: unknown): DisplayMonteCarlo[] {
   const result = asRecord(rawResult);
   const raw = Array.isArray(result.monteCarlo)
@@ -220,6 +334,9 @@ function getMonteCarloResults(rawResult: unknown): DisplayMonteCarlo[] {
     const percentiles = asRecord(entry.percentiles);
     const distribution = toNumberArray(entry.distribution);
     const rawSamples = toNumberArray(entry.raw_samples ?? entry.rawSamples);
+    const projection = getProjectionPoints(
+      entry.timeSeriesProjection ?? entry.time_series_projection
+    );
 
     return {
       variable: toStringValue(entry.variable, `Variable ${index + 1}`),
@@ -232,6 +349,7 @@ function getMonteCarloResults(rawResult: unknown): DisplayMonteCarlo[] {
       p75: toNumber(percentiles["75"] ?? percentiles.p75),
       p95: toNumber(percentiles["95"] ?? percentiles.p95),
       distribution: distribution.length ? distribution : rawSamples,
+      timeSeriesProjection: projection,
     };
   });
 }
@@ -298,10 +416,15 @@ function getBacktestData(rawResult: unknown): DisplayBacktest {
 
   const walkForwardResults = rawWalk.map((item, index) => {
     const entry = asRecord(item);
+    const predicted = toNumber(entry.predicted);
+    const p5Raw = toNumber(entry.p5, predicted);
+    const p95Raw = toNumber(entry.p95, predicted);
     return {
       period: toStringValue(entry.period, `t+${index + 1}`),
-      predicted: toNumber(entry.predicted),
+      predicted,
       actual: toNumber(entry.actual),
+      p5: Math.min(p5Raw, p95Raw),
+      p95: Math.max(p5Raw, p95Raw),
     };
   });
 
@@ -417,6 +540,13 @@ export default function SimulatePage() {
   const bayesianData = getBayesianData(currentResult);
   const backtestData = getBacktestData(currentResult);
   const agentData = getAgentData(currentResult);
+  const rankedSensitivity = [...sensitivityResults].sort(
+    (a, b) => Math.abs(b.totalSobolIndex) - Math.abs(a.totalSobolIndex)
+  );
+  const topSensitivity = rankedSensitivity.slice(0, 2);
+  const maxSensitivityImpact = rankedSensitivity.length
+    ? Math.max(...rankedSensitivity.map((item) => Math.abs(item.totalSobolIndex)))
+    : 0;
 
   useEffect(() => {
     void loadProjects();
@@ -720,6 +850,9 @@ export default function SimulatePage() {
                   ) : (
                     monteCarloResults.map((result) => {
                       const histogramData = getHistogramBins(result.distribution);
+                      const meanTone = getMetricToneClasses(result.variable, result.mean);
+                      const medianTone = getMetricToneClasses(result.variable, result.median);
+                      const stdTone = getMetricToneClasses(result.variable, result.std);
                       return (
                         <Card key={result.variable}>
                           <CardHeader>
@@ -728,22 +861,94 @@ export default function SimulatePage() {
                             </CardTitle>
                           </CardHeader>
                           <CardContent className="space-y-4">
+                            {result.timeSeriesProjection.length > 0 ? (
+                              <div className="rounded-lg border border-border/70 bg-muted/20 p-3">
+                                <p className="mb-2 text-xs font-medium text-muted-foreground">
+                                  Fan Chart (P5-P95 and P25-P75)
+                                </p>
+                                <div className="h-64 w-full">
+                                  <ResponsiveContainer width="100%" height="100%">
+                                    <LineChart data={result.timeSeriesProjection}>
+                                      <CartesianGrid strokeDasharray="3 3" />
+                                      <XAxis dataKey="month" tick={{ fontSize: 11 }} />
+                                      <YAxis
+                                        tick={{ fontSize: 11 }}
+                                        tickFormatter={(value) =>
+                                          formatCurrency(toNumber(value), true)
+                                        }
+                                      />
+                                      <Tooltip
+                                        formatter={(value, name) => [
+                                          formatCurrency(toNumber(value)),
+                                          String(name).toUpperCase(),
+                                        ]}
+                                      />
+                                      <Line
+                                        type="monotone"
+                                        dataKey="p95"
+                                        name="p95"
+                                        stroke="hsl(0 70% 52%)"
+                                        strokeOpacity={0.35}
+                                        strokeDasharray="6 6"
+                                        dot={false}
+                                      />
+                                      <Line
+                                        type="monotone"
+                                        dataKey="p75"
+                                        name="p75"
+                                        stroke="hsl(25 85% 56%)"
+                                        strokeOpacity={0.7}
+                                        strokeDasharray="4 4"
+                                        dot={false}
+                                      />
+                                      <Line
+                                        type="monotone"
+                                        dataKey="p50"
+                                        name="median"
+                                        stroke="hsl(var(--primary))"
+                                        strokeWidth={3}
+                                        dot={false}
+                                      />
+                                      <Line
+                                        type="monotone"
+                                        dataKey="p25"
+                                        name="p25"
+                                        stroke="hsl(25 85% 56%)"
+                                        strokeOpacity={0.7}
+                                        strokeDasharray="4 4"
+                                        dot={false}
+                                      />
+                                      <Line
+                                        type="monotone"
+                                        dataKey="p5"
+                                        name="p5"
+                                        stroke="hsl(0 70% 52%)"
+                                        strokeOpacity={0.35}
+                                        strokeDasharray="6 6"
+                                        dot={false}
+                                      />
+                                    </LineChart>
+                                  </ResponsiveContainer>
+                                </div>
+                              </div>
+                            ) : null}
+
                             <div className="grid gap-3 sm:grid-cols-3">
-                              <div className="rounded-md border p-3">
+                              <div className={`rounded-md border p-3 ${meanTone.card}`}>
                                 <p className="text-xs text-muted-foreground">Mean</p>
-                                <p className="text-sm font-semibold">
+                                <p className={`text-sm font-semibold ${meanTone.value}`}>
                                   {formatCurrency(result.mean)}
                                 </p>
                               </div>
-                              <div className="rounded-md border p-3">
+                              <div className={`rounded-md border p-3 ${medianTone.card}`}>
                                 <p className="text-xs text-muted-foreground">Median</p>
-                                <p className="text-sm font-semibold">
+                                <p className={`text-sm font-semibold ${medianTone.value}`}>
                                   {formatCurrency(result.median)}
                                 </p>
                               </div>
-                              <div className="rounded-md border p-3">
+                              <div className={`rounded-md border p-3 ${stdTone.card}`}>
                                 <p className="text-xs text-muted-foreground">Std Dev</p>
-                                <p className="text-sm font-semibold">
+                                <p className={`text-sm font-semibold ${stdTone.value}`}>
                                   {formatCurrency(result.std)}
                                 </p>
                               </div>
@@ -792,6 +997,30 @@ export default function SimulatePage() {
                     </p>
                   ) : (
                     <>
+                      <Card className="border-primary/20 bg-primary/5">
+                        <CardContent className="pt-6">
+                          <p className="text-sm leading-relaxed text-muted-foreground">
+                            <span className="font-medium text-foreground">
+                              {formatVarName(topSensitivity[0]?.variable ?? "")}
+                            </span>{" "}
+                            has the highest impact on outcomes (Sobol:{" "}
+                            {formatDecimal(topSensitivity[0]?.totalSobolIndex ?? 0, 3)}).
+                            Focus optimization efforts here.
+                            {topSensitivity[1] ? (
+                              <>
+                                {" "}
+                                Next most impactful:{" "}
+                                <span className="font-medium text-foreground">
+                                  {formatVarName(topSensitivity[1].variable)}
+                                </span>{" "}
+                                (Sobol:{" "}
+                                {formatDecimal(topSensitivity[1].totalSobolIndex, 3)}).
+                              </>
+                            ) : null}
+                          </p>
+                        </CardContent>
+                      </Card>
+
                       <Card>
                         <CardHeader>
                           <CardTitle className="text-sm">
@@ -802,7 +1031,7 @@ export default function SimulatePage() {
                           <div className="h-[320px] w-full">
                             <ResponsiveContainer width="100%" height="100%">
                               <BarChart
-                                data={sensitivityResults}
+                                data={rankedSensitivity}
                                 layout="vertical"
                                 margin={{ left: 8, right: 8 }}
                               >
@@ -815,11 +1044,28 @@ export default function SimulatePage() {
                                   tick={{ fontSize: 11 }}
                                   width={120}
                                 />
-                                <Tooltip />
+                                <Tooltip
+                                  labelFormatter={(value) =>
+                                    formatVarName(toStringValue(value))
+                                  }
+                                  formatter={(value) => [
+                                    formatDecimal(toNumber(value), 4),
+                                    "Total Sobol",
+                                  ]}
+                                />
                                 <Bar
                                   dataKey="totalSobolIndex"
-                                  fill="hsl(var(--primary))"
-                                />
+                                >
+                                  {rankedSensitivity.map((item) => (
+                                    <Cell
+                                      key={`impact-${item.variable}`}
+                                      fill={toImpactColor(
+                                        item.totalSobolIndex,
+                                        maxSensitivityImpact
+                                      )}
+                                    />
+                                  ))}
+                                </Bar>
                               </BarChart>
                             </ResponsiveContainer>
                           </div>
@@ -899,12 +1145,20 @@ export default function SimulatePage() {
                               className="rounded-md border p-3"
                             >
                               <p className="text-sm font-medium">
-                                {edge.from}{" "}
+                                {formatVarName(edge.from)}{" "}
                                 <span className="text-muted-foreground">→</span>{" "}
-                                {edge.to}
+                                {formatVarName(edge.to)}
                               </p>
-                              <p className="text-xs text-muted-foreground">
-                                Strength: {formatDecimal(edge.strength, 3)}
+                              <p
+                                className={`text-xs ${
+                                  edge.strength > 0
+                                    ? "text-emerald-600 dark:text-emerald-400"
+                                    : edge.strength < 0
+                                      ? "text-rose-600 dark:text-rose-400"
+                                      : "text-muted-foreground"
+                                }`}
+                              >
+                                Strength: {formatStrengthPercent(edge.strength)}
                               </p>
                               {edge.description ? (
                                 <p className="mt-1 text-xs text-muted-foreground">
@@ -931,10 +1185,17 @@ export default function SimulatePage() {
                           Accuracy
                         </CardTitle>
                       </CardHeader>
-                      <CardContent>
+                      <CardContent className="space-y-2">
                         <p className="text-xl font-semibold">
                           {formatPercent(backtestData.accuracy)}
                         </p>
+                        <Badge className={getAccuracyTone(backtestData.accuracy)}>
+                          {getAccuracyTier(backtestData.accuracy) === "high"
+                            ? "High Accuracy"
+                            : getAccuracyTier(backtestData.accuracy) === "moderate"
+                              ? "Moderate Accuracy"
+                              : "Low Accuracy"}
+                        </Badge>
                       </CardContent>
                     </Card>
                     <Card>
@@ -969,6 +1230,9 @@ export default function SimulatePage() {
                         <CardTitle className="text-sm">
                           Walk-Forward: Predicted vs Actual
                         </CardTitle>
+                        <CardDescription>
+                          Dashed lines represent the model confidence bounds (P5-P95).
+                        </CardDescription>
                       </CardHeader>
                       <CardContent>
                         <div className="h-72 w-full">
@@ -980,7 +1244,9 @@ export default function SimulatePage() {
                               <Tooltip
                                 formatter={(value, name) => [
                                   formatCurrency(toNumber(value)),
-                                  formatVarName(String(name)),
+                                  formatVarName(
+                                    toStringValue(name).replace(/\+/g, "_")
+                                  ),
                                 ]}
                               />
                               <Line
@@ -995,6 +1261,22 @@ export default function SimulatePage() {
                                 dataKey="actual"
                                 stroke="hsl(var(--muted-foreground))"
                                 strokeWidth={2}
+                                dot={false}
+                              />
+                              <Line
+                                type="monotone"
+                                dataKey="p5"
+                                stroke="hsl(var(--primary))"
+                                strokeOpacity={0.5}
+                                strokeDasharray="6 5"
+                                dot={false}
+                              />
+                              <Line
+                                type="monotone"
+                                dataKey="p95"
+                                stroke="hsl(var(--primary))"
+                                strokeOpacity={0.5}
+                                strokeDasharray="6 5"
                                 dot={false}
                               />
                             </LineChart>
@@ -1042,6 +1324,51 @@ export default function SimulatePage() {
                       </CardContent>
                     </Card>
                   </div>
+
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="text-sm">
+                        Agent Finding Confidence
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      {agentData.unifiedFindings.length > 0 ? (
+                        <div className="h-64 w-full">
+                          <ResponsiveContainer width="100%" height="100%">
+                            <BarChart
+                              data={agentData.unifiedFindings.map((finding, idx) => ({
+                                id: idx + 1,
+                                label: `F${idx + 1}`,
+                                confidence: finding.confidence * 100,
+                              }))}
+                            >
+                              <CartesianGrid strokeDasharray="3 3" />
+                              <XAxis dataKey="label" />
+                              <YAxis tickFormatter={(value) => `${toNumber(value)}%`} />
+                              <Tooltip
+                                formatter={(value) => [
+                                  formatPercent(toNumber(value)),
+                                  "Confidence",
+                                ]}
+                              />
+                              <Bar dataKey="confidence">
+                                {agentData.unifiedFindings.map((finding, idx) => (
+                                  <Cell
+                                    key={`agent-confidence-${idx}`}
+                                    fill={toImpactColor(finding.confidence * 100, 100)}
+                                  />
+                                ))}
+                              </Bar>
+                            </BarChart>
+                          </ResponsiveContainer>
+                        </div>
+                      ) : (
+                        <p className="text-sm text-muted-foreground">
+                          No confidence data available.
+                        </p>
+                      )}
+                    </CardContent>
+                  </Card>
 
                   <Card>
                     <CardHeader>
