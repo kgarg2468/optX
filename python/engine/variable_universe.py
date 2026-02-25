@@ -278,3 +278,81 @@ class VariableUniverse:
                     source="quick_start",
                 )
             )
+
+    def merge_agent_suggestions(self, suggestions: list[dict]) -> int:
+        """Validate and merge agent-suggested variables into the universe."""
+        if not suggestions:
+            return 0
+
+        known_names = {
+            str(variable.id).strip().lower()
+            for variable in self.variables.values()
+        }
+        known_names.update(
+            str(variable.name).strip().lower().replace(" ", "_")
+            for variable in self.variables.values()
+        )
+
+        added = 0
+        for suggestion in suggestions:
+            if not isinstance(suggestion, dict):
+                continue
+
+            raw_name = suggestion.get("name") or suggestion.get("display_name")
+            if not raw_name:
+                continue
+
+            normalized_name = str(raw_name).strip().lower().replace(" ", "_")
+            if not normalized_name or normalized_name in known_names:
+                continue
+
+            raw_value = suggestion.get("suggested_value", suggestion.get("value"))
+            try:
+                value = float(raw_value)
+            except (TypeError, ValueError):
+                continue
+
+            if not np.isfinite(value):
+                continue
+
+            variable_id = suggestion.get("id") or f"agent_{normalized_name}"
+            variable_id = str(variable_id).strip().lower().replace(" ", "_")
+            if variable_id in self.variables:
+                variable_id = f"agent_{normalized_name}"
+            if variable_id in self.variables:
+                continue
+
+            display_name = str(
+                suggestion.get(
+                    "display_name",
+                    suggestion.get("displayName", str(raw_name).strip()),
+                )
+            ).strip()
+            category = str(suggestion.get("category", "agent")).strip() or "agent"
+            unit = str(suggestion.get("unit", "units")).strip() or "units"
+
+            std = max(abs(value) * 0.1, 0.01)
+            distribution = Distribution(
+                type=DistributionType.NORMAL,
+                params={"mean": value, "std": std},
+            )
+
+            self.add_variable(
+                Variable(
+                    id=variable_id,
+                    name=normalized_name,
+                    display_name=display_name or normalized_name,
+                    category=category,
+                    value=value,
+                    unit=unit,
+                    distribution=distribution,
+                    confidence=0.5,
+                    time_series_data=None,
+                    source="agent",
+                )
+            )
+            known_names.add(normalized_name)
+            known_names.add(variable_id)
+            added += 1
+
+        return added

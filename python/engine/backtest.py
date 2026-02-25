@@ -7,8 +7,8 @@ Produces calibration scores, Brier scores, and ensemble disagreement.
 from __future__ import annotations
 
 from dataclasses import dataclass
+
 import numpy as np
-from typing import Optional
 
 
 @dataclass
@@ -17,12 +17,38 @@ class BacktestResult:
     mean_squared_relative_error: float
     calibration_data: list[dict]
     ensemble_disagreement: float
+    brier_score: float
     walk_forward_results: list[dict]
-    metadata: dict[str, str]
+    metadata: dict[str, object]
 
 
 class BacktestEngine:
     """Walk-forward backtesting and calibration scoring."""
+
+    def _normalize_prediction_output(self, output) -> tuple[list[float], list[dict]]:
+        if isinstance(output, dict):
+            raw_predictions = output.get("predictions", [])
+            raw_intervals = output.get("intervals", [])
+        else:
+            raw_predictions = output
+            raw_intervals = []
+
+        if isinstance(raw_predictions, (int, float)):
+            predictions = [float(raw_predictions)]
+        elif isinstance(raw_predictions, list):
+            predictions = [float(v) for v in raw_predictions]
+        else:
+            predictions = []
+
+        intervals: list[dict] = []
+        if isinstance(raw_intervals, list):
+            for interval in raw_intervals:
+                if isinstance(interval, dict):
+                    intervals.append(interval)
+                else:
+                    intervals.append({})
+
+        return predictions, intervals
 
     def walk_forward_validation(
         self,
@@ -42,6 +68,7 @@ class BacktestEngine:
                 mean_squared_relative_error=1.0,
                 calibration_data=[],
                 ensemble_disagreement=0.0,
+                brier_score=0.0,
                 walk_forward_results=[],
                 metadata={},
             )
@@ -54,24 +81,30 @@ class BacktestEngine:
             train_data = historical_data[:t]
             actual = historical_data[t : t + step_size]
 
-            # Get prediction
-            predicted = prediction_func(train_data)
-            if isinstance(predicted, (int, float)):
-                predicted = [predicted]
-            predicted_values = [float(v) for v in predicted]
+            predicted_output = prediction_func(train_data)
+            predicted_values, prediction_intervals = self._normalize_prediction_output(
+                predicted_output
+            )
             if predicted_values:
                 ensemble_predictions.append(predicted_values)
 
             for i, (pred, act) in enumerate(zip(predicted_values, actual)):
                 error = abs(pred - act) / abs(act) if act != 0 else abs(pred)
                 errors.append(error)
-                results.append(
-                    {
-                        "period": f"t+{t + i}",
-                        "predicted": float(pred),
-                        "actual": float(act),
-                    }
-                )
+
+                interval = prediction_intervals[i] if i < len(prediction_intervals) else {}
+                p5 = interval.get("p5")
+                p95 = interval.get("p95")
+
+                row = {
+                    "period": f"t+{t + i}",
+                    "predicted": float(pred),
+                    "actual": float(act),
+                }
+                if p5 is not None and p95 is not None:
+                    row["p5"] = float(p5)
+                    row["p95"] = float(p95)
+                results.append(row)
 
         # Compute accuracy (1 - MAPE)
         mape = float(np.mean(errors)) if errors else 1.0
@@ -85,12 +118,14 @@ class BacktestEngine:
         # Calibration data (binned predicted vs actual)
         calibration_data = self._compute_calibration(results)
         ensemble_disagreement = self.compute_ensemble_disagreement(ensemble_predictions)
+        brier_score = self.compute_brier_score(results)
 
         return BacktestResult(
             accuracy=accuracy,
             mean_squared_relative_error=mean_squared_relative_error,
             calibration_data=calibration_data,
             ensemble_disagreement=ensemble_disagreement,
+            brier_score=brier_score,
             walk_forward_results=results,
             metadata={},
         )
@@ -146,3 +181,23 @@ class BacktestEngine:
 
         cv = std_pred / (np.abs(mean_pred) + 1e-10)
         return float(np.mean(cv))
+
+    def compute_brier_score(self, walk_forward_results: list[dict]) -> float:
+        """Compute confidence-interval coverage score for probabilistic predictions."""
+        coverage_rows = [
+            row
+            for row in walk_forward_results
+            if "p5" in row and "p95" in row
+        ]
+        if not coverage_rows:
+            return 0.0
+
+        hits = 0
+        for row in coverage_rows:
+            actual = float(row["actual"])
+            p5 = float(row["p5"])
+            p95 = float(row["p95"])
+            if p5 <= actual <= p95:
+                hits += 1
+
+        return float(hits / len(coverage_rows))

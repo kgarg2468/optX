@@ -34,20 +34,28 @@ Provide:
 3. Competitive positioning insights
 4. Brand-related variables for simulation"""
 
-        response = self._call_llm(prompt)
-
-        return AgentAnalysis(
-            agent_type=self.agent_type,
-            findings=[
-                AgentFinding(
-                    summary="Brand analysis complete",
-                    details=response,
-                    confidence=0.55,
-                    supporting_data=[],
-                )
-            ],
-            scenario_suggestions=[],
-        )
+        try:
+            payload = self._call_llm_structured(prompt)
+            return self._build_structured_analysis(
+                payload=payload,
+                fallback_summary="Brand analysis complete",
+                fallback_details="Structured brand analysis unavailable.",
+                fallback_confidence=0.55,
+            )
+        except Exception:
+            response = self._call_llm(prompt)
+            return AgentAnalysis(
+                agent_type=self.agent_type,
+                findings=[
+                    AgentFinding(
+                        summary="Brand analysis complete",
+                        details=response,
+                        confidence=0.55,
+                        supporting_data=[],
+                    )
+                ],
+                scenario_suggestions=[],
+            )
 
     def critique(self, other_analysis: AgentAnalysis, business_data: dict) -> str:
         context = self._build_data_context(business_data, {})

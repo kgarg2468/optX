@@ -34,20 +34,28 @@ Provide:
 3. Expansion scenario parameters
 4. Growth sustainability assessment"""
 
-        response = self._call_llm(prompt)
-
-        return AgentAnalysis(
-            agent_type=self.agent_type,
-            findings=[
-                AgentFinding(
-                    summary="Growth analysis complete",
-                    details=response,
-                    confidence=0.6,
-                    supporting_data=[],
-                )
-            ],
-            scenario_suggestions=[],
-        )
+        try:
+            payload = self._call_llm_structured(prompt)
+            return self._build_structured_analysis(
+                payload=payload,
+                fallback_summary="Growth analysis complete",
+                fallback_details="Structured growth analysis unavailable.",
+                fallback_confidence=0.6,
+            )
+        except Exception:
+            response = self._call_llm(prompt)
+            return AgentAnalysis(
+                agent_type=self.agent_type,
+                findings=[
+                    AgentFinding(
+                        summary="Growth analysis complete",
+                        details=response,
+                        confidence=0.6,
+                        supporting_data=[],
+                    )
+                ],
+                scenario_suggestions=[],
+            )
 
     def critique(self, other_analysis: AgentAnalysis, business_data: dict) -> str:
         context = self._build_data_context(business_data, {})

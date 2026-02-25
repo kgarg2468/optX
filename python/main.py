@@ -12,6 +12,7 @@ import logging
 import os
 import uuid
 import warnings
+import numpy as np
 
 from openai import OpenAI
 from dotenv import load_dotenv
@@ -25,6 +26,7 @@ from engine.monte_carlo import MonteCarloEngine
 from engine.bayesian import BayesianEngine
 from engine.sensitivity import SensitivityEngine
 from engine.backtest import BacktestEngine
+from engine.garch import GARCHEngine
 from agents.coordinator import AgentCoordinator
 
 load_dotenv()
@@ -87,6 +89,9 @@ class SimulateRequest(BaseModel):
     business_data: dict[str, Any] = Field(default_factory=dict, alias="businessData")
     scenario_variables: List[dict[str, Any]] = Field(
         default_factory=list, alias="scenarioVariables"
+    )
+    include_agent_enrichment: bool = Field(
+        default=False, alias="includeAgentEnrichment"
     )
 
 
@@ -208,6 +213,283 @@ def _build_backtest_history(business_data: dict[str, Any]) -> list[float]:
     return [float(v) for v in revenue if isinstance(v, (int, float))]
 
 
+def _baseline_profit_model(values: list[float]) -> float:
+    if len(values) == 0:
+        return 0.0
+    revenue = float(values[0])
+    if len(values) == 1:
+        return revenue
+    expenses = float(sum(float(v) for v in values[1:]))
+    return revenue - expenses
+
+
+def _apply_garch_volatility_adjustments(universe: VariableUniverse) -> None:
+    garch_engine = GARCHEngine()
+
+    for variable in universe.variables.values():
+        ts_data = variable.time_series_data
+        if not ts_data or len(ts_data) < 10:
+            continue
+
+        series = [float(v) for v in ts_data if isinstance(v, (int, float))]
+        if len(series) < 10:
+            continue
+
+        returns = []
+        for prev, curr in zip(series[:-1], series[1:]):
+            denom = abs(prev) if abs(prev) > 1e-9 else 1.0
+            returns.append((curr - prev) / denom)
+        if len(returns) < 9:
+            continue
+
+        try:
+            fit_result = garch_engine.fit(returns)
+            forecast = garch_engine.forecast(fit_result, n_periods=1)
+            if not forecast:
+                continue
+
+            forecast_vol = float(forecast[0])
+            if not np.isfinite(forecast_vol) or forecast_vol <= 0:
+                continue
+
+            level_scale = abs(float(variable.value))
+            if level_scale <= 1e-6:
+                level_scale = float(np.mean(np.abs(series))) if series else 1.0
+
+            scaled_std = max(forecast_vol * level_scale, 1e-6)
+            variable.distribution.params["std"] = scaled_std
+            if variable.distribution.type.value == "lognormal":
+                variable.distribution.params["sigma"] = max(forecast_vol, 1e-6)
+        except Exception as exc:
+            logger.warning(
+                "GARCH adjustment failed for variable '%s': %s",
+                variable.id,
+                exc,
+            )
+
+
+def _build_dag_sensitivity_model(
+    universe: VariableUniverse, bayesian_engine: BayesianEngine
+):
+    variables_in_order = list(universe.variables.values())
+    id_to_index = {variable.id: idx for idx, variable in enumerate(variables_in_order)}
+
+    usable_edges = [
+        edge
+        for edge in bayesian_engine.edges
+        if edge.from_var in id_to_index
+    ]
+    if not usable_edges:
+        return _baseline_profit_model
+
+    outgoing_nodes = {edge.from_var for edge in usable_edges}
+    terminal_nodes = {
+        edge.to_var
+        for edge in usable_edges
+        if edge.to_var not in outgoing_nodes
+    }
+    if not terminal_nodes:
+        terminal_nodes = {edge.to_var for edge in usable_edges}
+
+    def model_func(values):
+        if len(values) == 0:
+            return 0.0
+
+        contributions: dict[str, float] = {}
+        for edge in usable_edges:
+            from_idx = id_to_index.get(edge.from_var)
+            if from_idx is None or from_idx >= len(values):
+                continue
+            contributions[edge.to_var] = contributions.get(edge.to_var, 0.0) + (
+                float(values[from_idx]) * float(edge.strength)
+            )
+
+        if not contributions:
+            return _baseline_profit_model(values)
+
+        return float(sum(contributions.get(node, 0.0) for node in terminal_nodes))
+
+    return model_func
+
+
+def _extract_agent_suggestions(coordinator_output) -> tuple[list[dict], list[dict]]:
+    suggested_variables: list[dict] = []
+    suggested_edges: list[dict] = []
+
+    for analysis in coordinator_output.individual_analyses:
+        for finding in analysis.findings:
+            if isinstance(finding.suggested_variables, list):
+                suggested_variables.extend(
+                    suggestion
+                    for suggestion in finding.suggested_variables
+                    if isinstance(suggestion, dict)
+                )
+            if isinstance(finding.suggested_edges, list):
+                suggested_edges.extend(
+                    edge for edge in finding.suggested_edges if isinstance(edge, dict)
+                )
+
+    return suggested_variables, suggested_edges
+
+
+def _normalize_agent_edge_endpoints(
+    universe: VariableUniverse, edge_suggestions: list[dict]
+) -> list[dict]:
+    if not edge_suggestions:
+        return []
+
+    alias_map: dict[str, str] = {}
+    for variable in universe.variables.values():
+        alias_map[variable.id] = variable.id
+        alias_map[variable.id.lower()] = variable.id
+        normalized_name = variable.name.strip().lower().replace(" ", "_")
+        alias_map[normalized_name] = variable.id
+        alias_map[f"agent_{normalized_name}"] = variable.id
+        if variable.id.startswith("expense_"):
+            alias_map[variable.id[len("expense_") :]] = variable.id
+
+    normalized_edges: list[dict] = []
+    for edge in edge_suggestions:
+        from_raw = edge.get("from_var") or edge.get("from")
+        to_raw = edge.get("to_var") or edge.get("to")
+        if not from_raw or not to_raw:
+            continue
+
+        from_key = str(from_raw).strip().lower().replace(" ", "_")
+        to_key = str(to_raw).strip().lower().replace(" ", "_")
+        from_resolved = alias_map.get(from_key, str(from_raw))
+        to_resolved = alias_map.get(to_key, str(to_raw))
+
+        normalized_edges.append(
+            {
+                **edge,
+                "from_var": from_resolved,
+                "to_var": to_resolved,
+            }
+        )
+
+    return normalized_edges
+
+
+def _run_simulation_layers(
+    universe: VariableUniverse,
+    config: SimulationConfig,
+    business_data: dict[str, Any],
+    agent_edges: Optional[list[dict]] = None,
+) -> dict[str, Any]:
+    monte_engine = MonteCarloEngine(universe, iterations=config.iterations)
+    monte_results = monte_engine.run(
+        time_horizon_months=config.time_horizon_months,
+        include_raw_samples=True,
+    )
+    monte_payload = [asdict(result) for result in monte_results]
+    if not config.include_raw_samples:
+        for result in monte_payload:
+            result.pop("raw_samples", None)
+
+    bayesian_engine = BayesianEngine()
+    bayesian_engine.build_default_structure(universe.variables)
+    for variable_id in universe.variables:
+        bayesian_engine.add_node(variable_id)
+    if agent_edges:
+        bayesian_engine.merge_agent_edges(agent_edges)
+
+    mc_samples: dict[str, list[float]] = {}
+    for variable, result in zip(universe.variables.values(), monte_results):
+        if result.raw_samples:
+            mc_samples[variable.id] = result.raw_samples
+            mc_samples[variable.name] = result.raw_samples
+
+    bayesian_engine.fit_from_samples(mc_samples)
+    bayesian_result = bayesian_engine.infer()
+    bayesian_payload = asdict(bayesian_result)
+    bayesian_payload["edges"] = [
+        {
+            "from": edge["from_var"],
+            "to": edge["to_var"],
+            "strength": edge["strength"],
+            "description": edge["description"],
+        }
+        for edge in bayesian_payload.get("edges", [])
+    ]
+
+    sensitivity_engine = SensitivityEngine()
+    variable_names, bounds = _build_sensitivity_bounds(universe)
+
+    if variable_names:
+        model_func = _build_dag_sensitivity_model(universe, bayesian_engine)
+        sensitivity_result = sensitivity_engine.sobol_analysis(
+            model_func=model_func,
+            variable_names=variable_names,
+            bounds=bounds,
+            n_samples=min(max(config.iterations // 10, 128), 1024),
+        )
+    else:
+        sensitivity_result = []
+
+    backtest_engine = BacktestEngine()
+    historical = _build_backtest_history(business_data)
+
+    def prediction_func(train_data: list[float]):
+        if not train_data:
+            return {"predictions": [0.0], "intervals": [{"p5": 0.0, "p95": 0.0}]}
+
+        mini_universe = VariableUniverse()
+        mini_universe.from_business_data(
+            {
+                "monthly_revenue": [float(v) for v in train_data],
+                "expenses": [],
+                "cash_on_hand": 0.0,
+                "outstanding_debt": 0.0,
+            }
+        )
+        _apply_garch_volatility_adjustments(mini_universe)
+
+        mini_engine = MonteCarloEngine(mini_universe, iterations=1000)
+        mini_results = mini_engine.run(time_horizon_months=1, include_raw_samples=False)
+        if not mini_results:
+            baseline = float(sum(train_data) / len(train_data))
+            return {
+                "predictions": [baseline],
+                "intervals": [{"p5": baseline, "p95": baseline}],
+            }
+
+        revenue_result = next(
+            (result for result in mini_results if result.variable == "monthly_revenue"),
+            mini_results[0],
+        )
+        if revenue_result.time_series_projection:
+            projection = revenue_result.time_series_projection[0]
+            median_projection = float(projection.p50)
+            p5 = float(projection.p5)
+            p95 = float(projection.p95)
+        else:
+            median_projection = float(revenue_result.median)
+            p5 = float(revenue_result.percentiles.get("5", median_projection))
+            p95 = float(revenue_result.percentiles.get("95", median_projection))
+
+        return {
+            "predictions": [median_projection],
+            "intervals": [{"p5": p5, "p95": p95}],
+        }
+
+    backtest_result = backtest_engine.walk_forward_validation(
+        historical_data=historical,
+        prediction_func=prediction_func,
+        window_size=min(6, max(len(historical) - 1, 1)),
+        step_size=1,
+    )
+    backtest_result.metadata["predictor"] = "monte_carlo_1k"
+    backtest_result.metadata["brier_score"] = float(backtest_result.brier_score)
+
+    return {
+        "monte_carlo": monte_payload,
+        "bayesian_network": bayesian_payload,
+        "sensitivity": [asdict(result) for result in sensitivity_result],
+        "backtest": asdict(backtest_result),
+    }
+
+
 def _infer_variable_category(column_name: str) -> str:
     normalized = column_name.strip().lower()
 
@@ -261,80 +543,58 @@ async def run_simulation(
 
         universe = VariableUniverse()
         universe.from_business_data(business_data)
+        _apply_garch_volatility_adjustments(universe)
         _apply_scenario_overrides(universe, request.scenario_variables)
 
-        monte_engine = MonteCarloEngine(universe, iterations=request.config.iterations)
-        monte_results = monte_engine.run(
-            time_horizon_months=request.config.time_horizon_months,
-            include_raw_samples=request.config.include_raw_samples,
+        base_results = _run_simulation_layers(
+            universe=universe,
+            config=request.config,
+            business_data=business_data,
         )
-        monte_payload = [asdict(result) for result in monte_results]
-        if not request.config.include_raw_samples:
-            for result in monte_payload:
-                result.pop("raw_samples", None)
 
-        bayesian_engine = BayesianEngine()
-        bayesian_engine.build_default_structure(universe.variables)
-        bayesian_result = bayesian_engine.infer()
-        bayesian_payload = asdict(bayesian_result)
-        bayesian_payload["edges"] = [
-            {
-                "from": edge["from_var"],
-                "to": edge["to_var"],
-                "strength": edge["strength"],
-                "description": edge["description"],
-            }
-            for edge in bayesian_payload.get("edges", [])
-        ]
-
-        sensitivity_engine = SensitivityEngine()
-        variable_names, bounds = _build_sensitivity_bounds(universe)
-
-        if variable_names:
-
-            def model_func(values):
-                if len(values) == 0:
-                    return 0.0
-                revenue = float(values[0])
-                if len(values) == 1:
-                    return revenue
-                expenses = float(sum(float(v) for v in values[1:]))
-                return revenue - expenses
-
-            sensitivity_result = sensitivity_engine.sobol_analysis(
-                model_func=model_func,
-                variable_names=variable_names,
-                bounds=bounds,
-                n_samples=min(max(request.config.iterations // 10, 128), 1024),
-            )
-        else:
-            sensitivity_result = []
-
-        backtest_engine = BacktestEngine()
-        historical = _build_backtest_history(business_data)
-
-        # Baseline predictor: trailing mean of the observed training history.
-        def prediction_func(train_data: list[float]):
-            if not train_data:
-                return [0.0]
-            return [sum(train_data) / len(train_data)]
-
-        backtest_result = backtest_engine.walk_forward_validation(
-            historical_data=historical,
-            prediction_func=prediction_func,
-            window_size=min(6, max(len(historical) - 1, 1)),
-            step_size=1,
-        )
-        backtest_result.metadata["predictor"] = "trailing_mean_baseline"
-
-        return {
+        response = {
             "simulation_id": simulation_id,
             "status": "complete",
-            "monte_carlo": monte_payload,
-            "bayesian_network": bayesian_payload,
-            "sensitivity": [asdict(result) for result in sensitivity_result],
-            "backtest": asdict(backtest_result),
+            "monte_carlo": base_results["monte_carlo"],
+            "bayesian_network": base_results["bayesian_network"],
+            "sensitivity": base_results["sensitivity"],
+            "backtest": base_results["backtest"],
         }
+
+        if request.include_agent_enrichment:
+            coordinator = AgentCoordinator()
+            agent_output = await coordinator.run(
+                request.business_data,
+                {
+                    "simulation_id": simulation_id,
+                    "monte_carlo": base_results["monte_carlo"],
+                    "bayesian_network": base_results["bayesian_network"],
+                    "sensitivity": base_results["sensitivity"],
+                    "backtest": base_results["backtest"],
+                },
+            )
+            suggested_variables, suggested_edges = _extract_agent_suggestions(agent_output)
+
+            enriched_universe = VariableUniverse()
+            enriched_universe.from_business_data(business_data)
+            _apply_garch_volatility_adjustments(enriched_universe)
+            _apply_scenario_overrides(enriched_universe, request.scenario_variables)
+            enriched_universe.merge_agent_suggestions(suggested_variables)
+
+            normalized_edges = _normalize_agent_edge_endpoints(
+                enriched_universe, suggested_edges
+            )
+            enriched_results = _run_simulation_layers(
+                universe=enriched_universe,
+                config=request.config,
+                business_data=business_data,
+                agent_edges=normalized_edges,
+            )
+
+            response["original_results"] = base_results
+            response["enriched_results"] = enriched_results
+
+        return response
     except HTTPException:
         raise
     except Exception as exc:
