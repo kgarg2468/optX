@@ -50,15 +50,20 @@
 /* Dark mode as default (root level - Calder Co Inspired) */
 :root {
   --radius: 0.625rem;
-  --background: oklch(0.18 0.005 285); /* Deep charcoal, almost black #151515 */
-  --foreground: oklch(0.96 0.01 285); /* Soft off-white/cream #F5F5F5 */
-  --card: oklch(0.20 0.005 285);
+  --background: oklch(0.15 0.005 285);
+  /* Deeper charcoal, almost black #111111 */
+  --foreground: oklch(0.96 0.01 285);
+  /* Soft off-white/cream #F5F5F5 */
+  --card: oklch(0.15 0.005 285 / 0.4);
+  /* Translucent for glass effect */
   --card-foreground: oklch(0.95 0 0);
-  --popover: oklch(0.20 0.005 285 / 0.7); /* Translucent popovers */
+  --popover: oklch(0.15 0.005 285 / 0.6);
+  /* Translucent popovers */
   --popover-foreground: oklch(0.95 0 0);
-  
+
   /* Accents */
-  --primary: oklch(0.35 0.05 30); /* Muted terracotta #5A3A35 */
+  --primary: oklch(0.35 0.05 30);
+  /* Muted terracotta #5A3A35 */
   --primary-foreground: oklch(0.98 0 0);
   --secondary: oklch(0.25 0.005 285);
   --secondary-foreground: oklch(0.9 0 0);
@@ -69,14 +74,20 @@
   --destructive: oklch(0.60 0.2 25);
   --border: oklch(1 0 0 / 12%);
   --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.85 0.05 285); /* Creamy ring focus */
-  
+  --ring: oklch(0.85 0.05 285);
+  /* Creamy ring focus */
+
   /* Charts - Muted editorial palette */
-  --chart-1: oklch(0.90 0.05 285); /* Off-white */
-  --chart-2: oklch(0.65 0.05 160); /* Soft sage green */
-  --chart-3: oklch(0.55 0.1 30);   /* Muted terracotta */
-  --chart-4: oklch(0.70 0.08 250); /* Soft blue-gray */
-  --chart-5: oklch(0.40 0.05 285); /* Mid charcoal */
+  --chart-1: oklch(0.90 0.05 285);
+  /* Off-white */
+  --chart-2: oklch(0.65 0.05 160);
+  /* Soft sage green */
+  --chart-3: oklch(0.55 0.1 30);
+  /* Muted terracotta */
+  --chart-4: oklch(0.70 0.08 250);
+  /* Soft blue-gray */
+  --chart-5: oklch(0.40 0.05 285);
+  /* Mid charcoal */
   --accent: oklch(0.22 0.008 285);
   --accent-foreground: oklch(0.95 0 0);
   --destructive: oklch(0.65 0.2 25);
@@ -88,13 +99,14 @@
   --chart-3: oklch(0.75 0.15 70);
   --chart-4: oklch(0.65 0.22 300);
   --chart-5: oklch(0.7 0.2 30);
-  --sidebar: oklch(0.11 0.005 285);
+  --sidebar: oklch(0.12 0.005 285 / 0.6);
+  /* Translucent sidebar */
   --sidebar-foreground: oklch(0.85 0 0);
   --sidebar-primary: oklch(0.65 0.2 250);
   --sidebar-primary-foreground: oklch(0.98 0 0);
-  --sidebar-accent: oklch(0.18 0.008 285);
+  --sidebar-accent: oklch(0.18 0.008 285 / 0.5);
   --sidebar-accent-foreground: oklch(0.95 0 0);
-  --sidebar-border: oklch(1 0 0 / 6%);
+  --sidebar-border: oklch(1 0 0 / 5%);
   --sidebar-ring: oklch(0.65 0.2 250);
 }
 
@@ -102,6 +114,7 @@
   * {
     @apply border-border outline-ring/50;
   }
+
   body {
     @apply bg-background text-foreground;
   }
@@ -112,13 +125,16 @@
   width: 6px;
   height: 6px;
 }
+
 ::-webkit-scrollbar-track {
   background: transparent;
 }
+
 ::-webkit-scrollbar-thumb {
   background: oklch(1 0 0 / 10%);
   border-radius: 3px;
 }
+
 ::-webkit-scrollbar-thumb:hover {
   background: oklch(1 0 0 / 20%);
 }

@@ -23,17 +23,17 @@ export function Sidebar() {
   const pathname = usePathname();
 
   return (
-    <aside className="fixed left-0 top-0 z-40 flex h-screen w-60 flex-col border-r border-sidebar-border bg-sidebar">
-      <div className="flex h-14 items-center gap-2 border-b border-sidebar-border px-5">
-        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary">
-          <Zap className="h-4 w-4 text-primary-foreground" />
+    <aside className="fixed left-0 top-0 z-40 flex h-screen w-60 flex-col border-r border-white/5 bg-[#1A1A1A]/60 backdrop-blur-2xl">
+      <div className="flex h-14 items-center gap-2 border-b border-white/5 px-5">
+        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-white/10">
+          <Zap className="h-4 w-4 text-white" />
         </div>
-        <span className="text-lg font-semibold tracking-tight text-sidebar-foreground">
+        <span className="text-lg font-semibold tracking-tight text-white">
           OptX
         </span>
       </div>
 
-      <nav className="flex-1 space-y-1 px-3 py-4">
+      <nav className="flex-1 space-y-2 px-3 py-6">
         {navItems.map((item) => {
           const isActive =
             item.href === "/"
@@ -45,10 +45,10 @@ export function Sidebar() {
               key={item.href}
               href={item.href}
               className={cn(
-                "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
+                "flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all duration-300",
                 isActive
-                  ? "bg-sidebar-accent text-sidebar-primary"
-                  : "text-sidebar-foreground/60 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground"
+                  ? "bg-white/10 text-white shadow-[0_0_15px_rgba(255,255,255,0.05)]"
+                  : "text-white/50 hover:bg-white/5 hover:text-white"
               )}
             >
               <item.icon className="h-4 w-4" />
@@ -58,10 +58,10 @@ export function Sidebar() {
         })}
       </nav>
 
-      <div className="border-t border-sidebar-border p-3">
+      <div className="border-t border-white/5 p-4">
         <Link
           href="/settings"
-          className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-sidebar-foreground/60 transition-colors hover:bg-sidebar-accent/50 hover:text-sidebar-foreground"
+          className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-white/50 transition-all duration-300 hover:bg-white/5 hover:text-white"
         >
           <Settings className="h-4 w-4" />
           Settings

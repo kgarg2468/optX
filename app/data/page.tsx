@@ -210,10 +210,9 @@ function DataPageContent() {
       />
 
       <div>
-        <h2 className="text-2xl font-bold tracking-tight">Data Ingestion</h2>
-        <p className="text-muted-foreground mt-1">
-          Add business data for the selected project using Quick Start or
-          Advanced Data Sources.
+        <h2 className="text-2xl font-bold tracking-tight text-white mb-2">Data Ingestion</h2>
+        <p className="text-sm text-white/50">
+          Add business data for the selected project using Quick Start or Advanced Data Sources.
         </p>
       </div>
 
@@ -222,8 +221,9 @@ function DataPageContent() {
       <Tabs
         value={dataEntryMode}
         onValueChange={(value) => setDataEntryMode(value as "quick_start" | "advanced")}
+        className="mt-8"
       >
-        <TabsList>
+        <TabsList className="mb-4">
           <TabsTrigger value="quick_start">Quick Start</TabsTrigger>
           <TabsTrigger value="advanced">Advanced Data Sources</TabsTrigger>
         </TabsList>

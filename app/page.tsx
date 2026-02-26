@@ -98,7 +98,7 @@ export default function Dashboard() {
         {stats.map((stat) => (
           <Card key={stat.label}>
             <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">
+              <CardTitle className="text-[10px] uppercase tracking-widest font-medium text-muted-foreground">
                 {stat.label}
               </CardTitle>
               <stat.icon className={`h-4 w-4 ${stat.color}`} />
@@ -141,8 +141,8 @@ export default function Dashboard() {
       {/* Getting Started Checklist */}
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Getting Started</CardTitle>
-          <CardDescription>
+          <CardTitle className="text-xs uppercase tracking-widest text-muted-foreground">Getting Started</CardTitle>
+          <CardDescription className="text-sm text-white">
             Complete these steps to run your first AI-powered simulation
           </CardDescription>
         </CardHeader>
