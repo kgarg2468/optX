@@ -95,10 +95,11 @@ export function ProjectListView({
           {projects.map((project) => (
             <Card
               key={project.id}
-              className="cursor-pointer transition-colors hover:bg-accent/50"
+              className="group cursor-pointer transition-all duration-300 hover:bg-accent/30 hover:shadow-[0_0_30px_rgba(255,255,255,0.03)] hover:border-white/10 relative overflow-hidden"
               onClick={() => onSelect(project.id)}
             >
-              <CardHeader>
+              <div className="absolute inset-0 bg-gradient-to-tr from-accent/0 via-accent/0 to-white/5 opacity-0 group-hover:opacity-100 transition-all duration-500" />
+              <CardHeader className="relative z-10">
                 <CardTitle className="text-base">{project.name}</CardTitle>
                 <CardDescription>
                   {project.industry.replaceAll("_", " ")} • {project.size}

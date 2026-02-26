@@ -96,15 +96,18 @@ export default function Dashboard() {
       {/* Stats grid */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {stats.map((stat) => (
-          <Card key={stat.label}>
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-[10px] uppercase tracking-widest font-medium text-muted-foreground">
+          <Card key={stat.label} className="group relative overflow-hidden transition-all duration-300 hover:-translate-y-1 hover:shadow-2xl">
+            <div className={`absolute inset-0 bg-gradient-to-br from-white/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 ${stat.color.replace('text-', 'from-').replace('100', '10')}`} />
+            <CardHeader className="flex flex-row items-center justify-between pb-2 relative z-10">
+              <CardTitle className="text-[10px] uppercase tracking-widest font-medium text-muted-foreground group-hover:text-foreground transition-colors">
                 {stat.label}
               </CardTitle>
-              <stat.icon className={`h-4 w-4 ${stat.color}`} />
+              <div className="rounded-full bg-white/5 p-2 transition-transform duration-300 group-hover:scale-110">
+                <stat.icon className={`h-4 w-4 ${stat.color}`} />
+              </div>
             </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{stat.value}</div>
+            <CardContent className="relative z-10">
+              <div className="text-3xl font-bold tracking-tight">{stat.value}</div>
               <p className="text-xs text-muted-foreground mt-1">
                 {stat.description}
               </p>
@@ -115,22 +118,25 @@ export default function Dashboard() {
 
       {/* Quick Actions */}
       <div>
-        <h3 className="text-lg font-semibold mb-4">Quick Actions</h3>
+        <h3 className="text-lg font-semibold mb-4 tracking-tight">Quick Actions</h3>
         <div className="grid gap-4 sm:grid-cols-3">
           {quickActions.map((action) => (
             <Link key={action.href} href={action.href}>
-              <Card className="group cursor-pointer transition-colors hover:bg-accent/50">
-                <CardContent className="flex items-start gap-4 pt-6">
-                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-accent">
+              <Card className="group cursor-pointer transition-all duration-300 hover:bg-accent/30 hover:shadow-[0_0_30px_rgba(255,255,255,0.03)] hover:border-white/10 relative overflow-hidden">
+                <div className="absolute inset-0 bg-gradient-to-tr from-accent/0 via-accent/0 to-white/5 opacity-0 group-hover:opacity-100 transition-all duration-500" />
+                <CardContent className="flex items-start gap-4 pt-6 relative z-10">
+                  <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-accent shadow-inner transition-transform duration-300 group-hover:scale-105 group-hover:bg-white/10">
                     <action.icon className={`h-5 w-5 ${action.color}`} />
                   </div>
                   <div className="flex-1">
-                    <h4 className="font-medium">{action.label}</h4>
-                    <p className="text-sm text-muted-foreground mt-1">
+                    <h4 className="font-medium text-foreground/90 group-hover:text-foreground transition-colors">{action.label}</h4>
+                    <p className="text-sm text-muted-foreground mt-1 leading-relaxed">
                       {action.description}
                     </p>
                   </div>
-                  <ArrowRight className="h-4 w-4 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100" />
+                  <div className="mt-1 flex h-8 w-8 items-center justify-center rounded-full bg-white/5 opacity-0 transition-all duration-300 group-hover:opacity-100 group-hover:translate-x-1">
+                    <ArrowRight className="h-4 w-4 text-white" />
+                  </div>
                 </CardContent>
               </Card>
             </Link>
@@ -180,18 +186,18 @@ export default function Dashboard() {
               <Link
                 key={i}
                 href={item.href}
-                className="flex items-center gap-3 rounded-lg p-3 transition-colors hover:bg-accent/50"
+                className="group flex items-center gap-4 rounded-xl p-3 transition-all duration-300 hover:bg-accent/40 border border-transparent hover:border-white/5 hover:shadow-lg"
               >
-                <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-border text-xs text-muted-foreground">
+                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-white/10 bg-black/20 text-xs font-medium text-muted-foreground transition-colors group-hover:border-white/20 group-hover:text-white group-hover:bg-white/5">
                   {i + 1}
                 </div>
                 <div className="flex-1">
-                  <p className="text-sm font-medium">{item.step}</p>
-                  <p className="text-xs text-muted-foreground">
+                  <p className="text-sm font-medium text-foreground/80 group-hover:text-foreground transition-colors">{item.step}</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">
                     {item.description}
                   </p>
                 </div>
-                <ArrowRight className="h-3 w-3 text-muted-foreground" />
+                <ArrowRight className="h-4 w-4 text-muted-foreground transition-transform duration-300 group-hover:translate-x-1 group-hover:text-white" />
               </Link>
             ))}
           </div>

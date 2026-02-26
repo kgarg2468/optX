@@ -22,7 +22,7 @@ export function TopBar() {
   const pathname = usePathname();
 
   return (
-    <header className="sticky top-0 z-30 flex h-14 items-center justify-between border-b border-white/5 bg-[#111111]/80 px-6 backdrop-blur-xl">
+    <header className="sticky top-0 z-30 flex h-14 items-center justify-between border-b border-border bg-background/80 px-6 backdrop-blur-xl">
       <h1 className="text-lg font-semibold">{getPageTitle(pathname)}</h1>
       <div className="flex items-center gap-2">
         <Button variant="ghost" size="icon" className="text-muted-foreground">
