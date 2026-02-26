@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { QuickStartForm } from "@/components/data/QuickStartForm";
@@ -11,7 +11,7 @@ import { ProjectSwitchGuard } from "@/components/projects/ProjectSwitchGuard";
 import { useBusinessStore } from "@/lib/store/business-store";
 import { useProjectStore } from "@/lib/store/project-store";
 
-export default function DataPage() {
+function DataPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const projectId = searchParams.get("project");
@@ -186,19 +186,19 @@ export default function DataPage() {
         onRenameProject={
           selectedProject
             ? async (id, name) => {
-                setIsRenaming(true);
-                try {
-                  const updated = await renameProject(id, name);
-                  if (projectId === updated.id) {
-                    setBusinessData(
-                      { name: updated.name },
-                      { markDirty: isDirty }
-                    );
-                  }
-                } finally {
-                  setIsRenaming(false);
+              setIsRenaming(true);
+              try {
+                const updated = await renameProject(id, name);
+                if (projectId === updated.id) {
+                  setBusinessData(
+                    { name: updated.name },
+                    { markDirty: isDirty }
+                  );
                 }
+              } finally {
+                setIsRenaming(false);
               }
+            }
             : undefined
         }
         onDeleteProject={
@@ -266,5 +266,13 @@ export default function DataPage() {
         onDiscard={handleDiscardAndContinue}
       />
     </div>
+  );
+}
+
+export default function DataPage() {
+  return (
+    <Suspense fallback={<div className="p-8 text-center text-muted-foreground">Loading data...</div>}>
+      <DataPageContent />
+    </Suspense>
   );
 }

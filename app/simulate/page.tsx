@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, Suspense, useMemo } from "react";
 import {
   Play,
   Wand2,
@@ -36,6 +36,11 @@ import { useProjectStore } from "@/lib/store/project-store";
 import { ScenarioWizard } from "@/components/wizard/ScenarioWizard";
 import { ProjectListView } from "@/components/projects/ProjectListView";
 import { ProjectHeader } from "@/components/projects/ProjectHeader";
+import { SimulationActionRail } from "@/components/ui/SimulationActionRail";
+import { SimulationChartOverlay } from "@/components/ui/SimulationChartOverlay";
+import { ElevatedNode } from "@/components/ui/nodes/ElevatedNode";
+import { ReactFlow, Background } from "@xyflow/react";
+import "@xyflow/react/dist/style.css";
 import type { SimulationStatus } from "@/lib/types";
 import {
   formatCompact,
@@ -645,7 +650,7 @@ function getAgentData(rawResult: unknown): DisplayAgentAnalysis {
   };
 }
 
-export default function SimulatePage() {
+function SimulatePageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const projectId = searchParams.get("project");
@@ -690,11 +695,11 @@ export default function SimulatePage() {
     progress > 0
       ? progress
       : STATUS_PROGRESS_FALLBACK[simulationStatus] ?? 0;
-  const monteCarloResults = getMonteCarloResults(currentResult);
-  const sensitivityResults = getSensitivityResults(currentResult);
-  const bayesianData = getBayesianData(currentResult);
-  const backtestData = getBacktestData(currentResult);
-  const agentData = getAgentData(currentResult);
+  const monteCarloResults = useMemo(() => getMonteCarloResults(currentResult), [currentResult]);
+  const sensitivityResults = useMemo(() => getSensitivityResults(currentResult), [currentResult]);
+  const bayesianData = useMemo(() => getBayesianData(currentResult), [currentResult]);
+  const backtestData = useMemo(() => getBacktestData(currentResult), [currentResult]);
+  const agentData = useMemo(() => getAgentData(currentResult), [currentResult]);
   const rankedSensitivity = [...sensitivityResults].sort(
     (a, b) => Math.abs(b.totalSobolIndex) - Math.abs(a.totalSobolIndex)
   );
@@ -817,6 +822,72 @@ export default function SimulatePage() {
     }
   };
 
+  const [nodes, setNodes] = useState(bayesianData.nodes.map((node, i) => ({
+    id: node,
+    type: 'elevated',
+    position: { x: 250 + (i % 3) * 300, y: 150 + Math.floor(i / 3) * 200 },
+    data: {
+      label: node,
+      value: (Math.random() * 1000).toFixed(0),
+      status: i % 4 === 0 ? "warning" : "normal"
+    },
+  })));
+
+  const [edges, setEdges] = useState(bayesianData.edges.map((edge, i) => ({
+    id: `e-${edge.from}-${edge.to}`,
+    source: edge.from,
+    target: edge.to,
+    animated: true,
+    style: { stroke: edge.strength > 0 ? '#10b981' : '#f43f5e', strokeWidth: 2 },
+  })));
+
+  const [showCharts, setShowCharts] = useState(false);
+
+  // Update nodes/edges when simulation data changes
+  useEffect(() => {
+    if (simulationStatus === "complete" && bayesianData.nodes.length > 0) {
+      setNodes(bayesianData.nodes.map((node, i) => {
+        // Find corresponding Monte Carlo result for this node to get actual data
+        const mcResult = monteCarloResults.find(mc => mc.variable === node);
+        const sensitivity = sensitivityResults.find(s => s.variable === node);
+
+        let displayValue = "-";
+        if (mcResult) {
+          // Determine if it's a currency, percentage, or raw number based on variable name or magnitude
+          const isCurrency = node.toLowerCase().includes('revenue') || node.toLowerCase().includes('cost') || node.toLowerCase().includes('expense') || node.toLowerCase().includes('price');
+          displayValue = isCurrency ? formatCurrency(mcResult.p50) : formatCompact(mcResult.p50);
+        }
+
+        // Determine status based on sensitivity
+        let status: "normal" | "warning" | "success" = "normal";
+        if (sensitivity) {
+          if (sensitivity.totalSobolIndex > 0.4) status = "warning";
+        }
+
+        return {
+          id: node,
+          type: 'elevated',
+          position: { x: window.innerWidth / 2 - 400 + (i % 3) * 300, y: 200 + Math.floor(i / 3) * 200 },
+          data: {
+            label: node,
+            value: displayValue,
+            status: status
+          },
+        };
+      }));
+
+      setEdges(bayesianData.edges.map((edge) => ({
+        id: `e-${edge.from}-${edge.to}`,
+        source: edge.from,
+        target: edge.to,
+        animated: true,
+        style: { stroke: edge.strength > 0 ? '#10b981' : '#f43f5e', strokeWidth: Math.abs(edge.strength) > 0.5 ? 4 : 2 },
+      })));
+
+      setShowCharts(true);
+    }
+  }, [simulationStatus, bayesianData, monteCarloResults, sensitivityResults]);
+
   const handleDeleteProject = async (targetProjectId: string) => {
     setDeleteError(null);
     setIsDeleting(true);
@@ -831,6 +902,22 @@ export default function SimulatePage() {
     } finally {
       setIsDeleting(false);
     }
+  };
+
+  const [selectedNodeData, setSelectedNodeData] = useState<{
+    variable: string;
+    mcResult?: DisplayMonteCarlo;
+    sensitivity?: DisplaySensitivity;
+  } | null>(null);
+
+  const handleNodeClick = (event: React.MouseEvent, node: { id: string }) => {
+    const mcResult = monteCarloResults.find(mc => mc.variable === node.id);
+    const sensitivity = sensitivityResults.find(s => s.variable === node.id);
+    setSelectedNodeData({
+      variable: node.id,
+      mcResult,
+      sensitivity
+    });
   };
 
   if (!projectId) {
@@ -848,909 +935,180 @@ export default function SimulatePage() {
     );
   }
 
-  return (
-    <div className="space-y-6">
-      <ProjectHeader
-        project={selectedProject}
-        projects={projects}
-        onBackToProjects={() => router.push("/simulate")}
-        onSelectProject={(id) => router.push(`/simulate?project=${id}`)}
-        onCreateProject={() => router.push("/data?new=1")}
-        onRenameProject={
-          selectedProject
-            ? async (id, name) => {
-                setIsRenaming(true);
-                try {
-                  await renameProject(id, name);
-                } finally {
-                  setIsRenaming(false);
-                }
-              }
-            : undefined
-        }
-        onDeleteProject={
-          selectedProject ? (id) => handleDeleteProject(id) : undefined
-        }
-        isRenaming={isRenaming}
-        isDeleting={isDeleting}
-        deleteError={deleteError}
-      />
+  // --- Action Cam Flow UI Overhaul ---
 
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h2 className="text-2xl font-bold tracking-tight">Simulation</h2>
-          <p className="text-muted-foreground mt-1">
-            Choose a scenario and run AI-powered simulations on this project.
-          </p>
-        </div>
-        <div className="flex min-w-[280px] items-center gap-2">
+
+  // Generate fake logs for demo purposes
+  const demoLogs = agentData.debateRounds.flatMap(r =>
+    r.critiques.map((c, i) => ({
+      id: `${r.round}-${i}`,
+      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
+      message: `${c.fromAgent}: ${c.critique.substring(0, 50)}...`
+    }))
+  );
+
+  return (
+    <div className="relative w-full h-[calc(100vh-4rem)] bg-[#111111] overflow-hidden rounded-3xl border border-white/5">
+      {/* Layer 4: Top Navigation & Status */}
+      <div className="absolute top-0 left-0 right-0 z-50 p-6 flex justify-between items-start pointer-events-none">
+        <div className="pointer-events-auto">
           <Select
             value={selectedScenarioId}
             onValueChange={setSelectedScenarioId}
             disabled={scenarios.length === 0}
           >
-            <SelectTrigger className="w-[220px]">
-              <SelectValue placeholder="Select scenario" />
+            <SelectTrigger className="w-[280px] bg-black/40 backdrop-blur-xl border-white/10 rounded-full h-12 px-6 shadow-2xl">
+              <SelectValue placeholder="Select scenario to run" />
             </SelectTrigger>
-            <SelectContent>
+            <SelectContent className="bg-[#1A1A1A] border-white/10 text-white rounded-2xl">
               {scenarios.map((scenario) => (
-                <SelectItem key={scenario.id} value={scenario.id}>
+                <SelectItem key={scenario.id} value={scenario.id} className="focus:bg-white/10 rounded-xl cursor-pointer">
                   {scenario.name}
                 </SelectItem>
               ))}
             </SelectContent>
           </Select>
-          <Button
-            onClick={handleRunSimulation}
-            disabled={isRunning || !selectedScenarioId}
-          >
-            <Play className="mr-2 h-4 w-4" />
-            {isRunning ? "Running..." : "Run Simulation"}
-          </Button>
+        </div>
+
+        <div className="bg-black/40 backdrop-blur-xl border border-white/10 rounded-full px-6 py-3 shadow-2xl pointer-events-auto">
+          <div className="flex items-center gap-4">
+            <div className="flex flex-col">
+              <span className="text-[10px] uppercase tracking-widest text-muted-foreground mr-2 font-medium">Status</span>
+              <span className="text-sm font-semibold text-white tracking-wide">
+                {STATUS_LABELS[simulationStatus]}
+              </span>
+            </div>
+            {simulationStatus !== "idle" && simulationStatus !== "complete" && (
+              <div className="w-32 h-1.5 bg-white/10 rounded-full overflow-hidden">
+                <div
+                  className="h-full bg-white transition-all duration-300 ease-out"
+                  style={{ width: `${normalizedProgress}%` }}
+                />
+              </div>
+            )}
+            {simulationStatus === "complete" && (
+              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+            )}
+          </div>
         </div>
       </div>
 
-      {scenarioError ? (
-        <p className="text-sm text-destructive">{scenarioError}</p>
-      ) : null}
-
-      {/* Simulation config */}
-      <div className="grid gap-4 sm:grid-cols-3">
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              Monte Carlo Iterations
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              {config.iterations.toLocaleString()}
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              Time Horizon
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{config.timeHorizonMonths} months</div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              Confidence Level
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              {formatPercent(config.confidenceLevel)}
-            </div>
-          </CardContent>
-        </Card>
+      {/* Layer 1: The Media Canvas (React Flow) */}
+      <div className="absolute inset-0">
+        <ReactFlow
+          nodes={nodes}
+          edges={edges}
+          nodeTypes={{ elevated: ElevatedNode }}
+          onNodeClick={handleNodeClick}
+          fitView
+          className="bg-[#111111]"
+          proOptions={{ hideAttribution: true }}
+          colorMode="dark"
+        >
+          <Background color="#ffffff" gap={24} size={1} />
+        </ReactFlow>
       </div>
 
-      {showResults ? (
-        <Card>
-          <CardHeader className="space-y-4">
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <div className="flex items-center gap-2">
-                <CardTitle className="text-base">Simulation Results</CardTitle>
-                <Badge
-                  variant={
-                    simulationStatus === "error"
-                      ? "destructive"
-                      : simulationStatus === "complete"
-                        ? "default"
-                        : "secondary"
-                  }
-                >
-                  {STATUS_LABELS[simulationStatus]}
-                </Badge>
-              </div>
-              {simulationStatus === "complete" ? (
-                <div className="flex items-center gap-1 text-xs text-emerald-500">
-                  <CheckCircle2 className="h-3.5 w-3.5" />
-                  Completed successfully
-                </div>
-              ) : null}
-            </div>
-
-            <div className="space-y-2">
-              <div className="flex items-center justify-between text-xs text-muted-foreground">
-                <span>Progress</span>
-                <span>{Math.round(normalizedProgress)}%</span>
-              </div>
-              <Progress value={normalizedProgress} />
-            </div>
-
-            {simulationStatus === "error" && simulationError ? (
-              <div className="flex items-start gap-2 rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">
-                <AlertTriangle className="mt-0.5 h-4 w-4" />
-                <span>{simulationError}</span>
-              </div>
-            ) : null}
-
-            {!currentResult && simulationStatus !== "error" ? (
-              <CardDescription>
-                Simulation is in progress. Results will appear here as soon as they
-                are available.
-              </CardDescription>
-            ) : null}
-          </CardHeader>
-
-          {currentResult ? (
-            <CardContent>
-              {simulationStatus === "complete" ? (
-                <div className="mb-6">
-                  <ExecutiveSimulationSummary
-                    headline={executiveHeadline}
-                    expectedMonth12Revenue={expectedMonth12Revenue}
-                    primaryRiskDriver={primaryRiskDriver}
-                    modelAccuracy={backtestData.accuracy}
-                    aggregateProjection={aggregateBaselineProjection}
-                  />
-                </div>
-              ) : null}
-
-              <Tabs defaultValue="monte-carlo" className="space-y-6">
-                <TabsList className="grid h-auto w-full grid-cols-2 gap-2 md:grid-cols-5">
-                  <TabsTrigger value="monte-carlo">Monte Carlo</TabsTrigger>
-                  <TabsTrigger value="sensitivity">Sensitivity</TabsTrigger>
-                  <TabsTrigger value="bayesian">Bayesian</TabsTrigger>
-                  <TabsTrigger value="backtest">Backtest</TabsTrigger>
-                  <TabsTrigger value="agents">Agents</TabsTrigger>
-                </TabsList>
-
-                <TabsContent value="monte-carlo" className="space-y-4">
-                  {monteCarloResults.length === 0 ? (
-                    <p className="text-sm text-muted-foreground">
-                      No Monte Carlo results available.
-                    </p>
-                  ) : (
-                    monteCarloResults.map((result) => {
-                      const histogramData = getHistogramBins(result.distribution);
-                      const meanTone = getMetricToneClasses(result.variable, result.mean);
-                      const medianTone = getMetricToneClasses(result.variable, result.median);
-                      const stdTone = getMetricToneClasses(result.variable, result.std);
-                      return (
-                        <Card key={result.variable}>
-                          <CardHeader>
-                            <CardTitle className="text-sm">
-                              {formatVarName(result.variable)}
-                            </CardTitle>
-                          </CardHeader>
-                          <CardContent className="space-y-4">
-                            {result.timeSeriesProjection.length > 0 ? (
-                              <div className="rounded-lg border border-border/70 bg-muted/20 p-3">
-                                <p className="mb-2 text-xs font-medium text-muted-foreground">
-                                  Fan Chart (P5-P95 and P25-P75)
-                                </p>
-                                <div className="h-64 w-full">
-                                  <ResponsiveContainer width="100%" height="100%">
-                                    <LineChart data={result.timeSeriesProjection}>
-                                      <CartesianGrid strokeDasharray="3 3" />
-                                      <XAxis dataKey="month" tick={{ fontSize: 11 }} />
-                                      <YAxis
-                                        tick={{ fontSize: 11 }}
-                                        tickFormatter={(value) =>
-                                          formatCurrency(toNumber(value), true)
-                                        }
-                                      />
-                                      <Tooltip
-                                        formatter={(value, name) => [
-                                          formatCurrency(toNumber(value)),
-                                          String(name).toUpperCase(),
-                                        ]}
-                                      />
-                                      <Line
-                                        type="monotone"
-                                        dataKey="p95"
-                                        name="p95"
-                                        stroke="hsl(0 70% 52%)"
-                                        strokeOpacity={0.35}
-                                        strokeDasharray="6 6"
-                                        dot={false}
-                                      />
-                                      <Line
-                                        type="monotone"
-                                        dataKey="p75"
-                                        name="p75"
-                                        stroke="hsl(25 85% 56%)"
-                                        strokeOpacity={0.7}
-                                        strokeDasharray="4 4"
-                                        dot={false}
-                                      />
-                                      <Line
-                                        type="monotone"
-                                        dataKey="p50"
-                                        name="median"
-                                        stroke="hsl(var(--primary))"
-                                        strokeWidth={3}
-                                        dot={false}
-                                      />
-                                      <Line
-                                        type="monotone"
-                                        dataKey="p25"
-                                        name="p25"
-                                        stroke="hsl(25 85% 56%)"
-                                        strokeOpacity={0.7}
-                                        strokeDasharray="4 4"
-                                        dot={false}
-                                      />
-                                      <Line
-                                        type="monotone"
-                                        dataKey="p5"
-                                        name="p5"
-                                        stroke="hsl(0 70% 52%)"
-                                        strokeOpacity={0.35}
-                                        strokeDasharray="6 6"
-                                        dot={false}
-                                      />
-                                    </LineChart>
-                                  </ResponsiveContainer>
-                                </div>
-                              </div>
-                            ) : null}
-
-                            <div className="grid gap-3 sm:grid-cols-3">
-                              <div className={`rounded-md border p-3 ${meanTone.card}`}>
-                                <p className="text-xs text-muted-foreground">Mean</p>
-                                <p className={`text-sm font-semibold ${meanTone.value}`}>
-                                  {formatCurrency(result.mean)}
-                                </p>
-                              </div>
-                              <div className={`rounded-md border p-3 ${medianTone.card}`}>
-                                <p className="text-xs text-muted-foreground">Median</p>
-                                <p className={`text-sm font-semibold ${medianTone.value}`}>
-                                  {formatCurrency(result.median)}
-                                </p>
-                              </div>
-                              <div className={`rounded-md border p-3 ${stdTone.card}`}>
-                                <p className="text-xs text-muted-foreground">Std Dev</p>
-                                <p className={`text-sm font-semibold ${stdTone.value}`}>
-                                  {formatCurrency(result.std)}
-                                </p>
-                              </div>
-                            </div>
-
-                            <div className="grid gap-2 text-xs text-muted-foreground sm:grid-cols-5">
-                              <div>P5: {formatCurrency(result.p5)}</div>
-                              <div>P25: {formatCurrency(result.p25)}</div>
-                              <div>P50: {formatCurrency(result.p50)}</div>
-                              <div>P75: {formatCurrency(result.p75)}</div>
-                              <div>P95: {formatCurrency(result.p95)}</div>
-                            </div>
-
-                            {histogramData.length > 0 ? (
-                              <div className="h-56 w-full">
-                                <ResponsiveContainer width="100%" height="100%">
-                                  <BarChart data={histogramData}>
-                                    <CartesianGrid strokeDasharray="3 3" />
-                                    <XAxis
-                                      dataKey="bin"
-                                      tick={{ fontSize: 10 }}
-                                      interval="preserveStartEnd"
-                                    />
-                                    <YAxis tick={{ fontSize: 10 }} />
-                                    <Tooltip />
-                                    <Bar dataKey="count" fill="hsl(var(--primary))" />
-                                  </BarChart>
-                                </ResponsiveContainer>
-                              </div>
-                            ) : (
-                              <p className="text-xs text-muted-foreground">
-                                No distribution data available for charting.
-                              </p>
-                            )}
-                          </CardContent>
-                        </Card>
-                      );
-                    })
-                  )}
-                </TabsContent>
-
-                <TabsContent value="sensitivity" className="space-y-4">
-                  {sensitivityResults.length === 0 ? (
-                    <p className="text-sm text-muted-foreground">
-                      No sensitivity analysis results available.
-                    </p>
-                  ) : (
-                    <>
-                      <Card className="border-primary/20 bg-primary/5">
-                        <CardContent className="pt-6">
-                          <p className="text-sm leading-relaxed text-muted-foreground">
-                            <span className="font-medium text-foreground">
-                              {formatVarName(topSensitivity[0]?.variable ?? "")}
-                            </span>{" "}
-                            has the highest impact on outcomes (Sobol:{" "}
-                            {formatDecimal(topSensitivity[0]?.totalSobolIndex ?? 0, 3)}).
-                            Focus optimization efforts here.
-                            {topSensitivity[1] ? (
-                              <>
-                                {" "}
-                                Next most impactful:{" "}
-                                <span className="font-medium text-foreground">
-                                  {formatVarName(topSensitivity[1].variable)}
-                                </span>{" "}
-                                (Sobol:{" "}
-                                {formatDecimal(topSensitivity[1].totalSobolIndex, 3)}).
-                              </>
-                            ) : null}
-                          </p>
-                        </CardContent>
-                      </Card>
-
-                      <Card>
-                        <CardHeader>
-                          <CardTitle className="text-sm">
-                            Sensitivity Ranking (Total Sobol)
-                          </CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                          <div className="h-[320px] w-full">
-                            <ResponsiveContainer width="100%" height="100%">
-                              <BarChart
-                                data={rankedSensitivity}
-                                layout="vertical"
-                                margin={{ left: 8, right: 8 }}
-                              >
-                                <CartesianGrid strokeDasharray="3 3" />
-                                <XAxis type="number" />
-                                <YAxis
-                                  dataKey="variable"
-                                  type="category"
-                                  tickFormatter={formatVarName}
-                                  tick={{ fontSize: 11 }}
-                                  width={120}
-                                />
-                                <Tooltip
-                                  labelFormatter={(value) =>
-                                    formatVarName(toStringValue(value))
-                                  }
-                                  formatter={(value) => [
-                                    formatDecimal(toNumber(value), 4),
-                                    "Total Sobol",
-                                  ]}
-                                />
-                                <Bar
-                                  dataKey="totalSobolIndex"
-                                >
-                                  {rankedSensitivity.map((item) => (
-                                    <Cell
-                                      key={`impact-${item.variable}`}
-                                      fill={toImpactColor(
-                                        item.totalSobolIndex,
-                                        maxSensitivityImpact
-                                      )}
-                                    />
-                                  ))}
-                                </Bar>
-                              </BarChart>
-                            </ResponsiveContainer>
-                          </div>
-                        </CardContent>
-                      </Card>
-
-                      <div className="overflow-x-auto rounded-md border">
-                        <table className="w-full text-sm">
-                          <thead className="bg-muted/50 text-xs uppercase tracking-wide text-muted-foreground">
-                            <tr>
-                              <th className="p-3 text-left">Rank</th>
-                              <th className="p-3 text-left">Variable</th>
-                              <th className="p-3 text-right">Sobol</th>
-                              <th className="p-3 text-right">Total Sobol</th>
-                              <th className="p-3 text-right">Morris</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {sensitivityResults.map((result) => (
-                              <tr key={result.variable} className="border-t">
-                                <td className="p-3">{result.rank}</td>
-                                <td className="p-3 font-medium">
-                                  {formatVarName(result.variable)}
-                                </td>
-                                <td className="p-3 text-right">
-                                  {formatDecimal(result.sobolIndex, 4)}
-                                </td>
-                                <td className="p-3 text-right">
-                                  {formatDecimal(result.totalSobolIndex, 4)}
-                                </td>
-                                <td className="p-3 text-right">
-                                  {formatDecimal(result.morrisScreening, 4)}
-                                </td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
-                    </>
-                  )}
-                </TabsContent>
-
-                <TabsContent value="bayesian" className="space-y-4">
-                  <div className="grid gap-4 lg:grid-cols-3">
-                    <Card className="lg:col-span-1">
-                      <CardHeader>
-                        <CardTitle className="text-sm">
-                          Nodes ({bayesianData.nodes.length})
-                        </CardTitle>
-                      </CardHeader>
-                      <CardContent className="flex flex-wrap gap-2">
-                        {bayesianData.nodes.length > 0 ? (
-                          bayesianData.nodes.map((node) => (
-                            <Badge key={node} variant="secondary">
-                              {node}
-                            </Badge>
-                          ))
-                        ) : (
-                          <p className="text-sm text-muted-foreground">
-                            No nodes available.
-                          </p>
-                        )}
-                      </CardContent>
-                    </Card>
-
-                    <Card className="lg:col-span-2">
-                      <CardHeader>
-                        <CardTitle className="text-sm">
-                          Edges ({bayesianData.edges.length})
-                        </CardTitle>
-                      </CardHeader>
-                      <CardContent className="space-y-2">
-                        {bayesianData.edges.length > 0 ? (
-                          bayesianData.edges.map((edge, idx) => (
-                            <div
-                              key={`${edge.from}-${edge.to}-${idx}`}
-                              className="rounded-md border p-3"
-                            >
-                              <p className="text-sm font-medium">
-                                {formatVarName(edge.from)}{" "}
-                                <span className="text-muted-foreground">→</span>{" "}
-                                {formatVarName(edge.to)}
-                              </p>
-                              <p
-                                className={`text-xs ${
-                                  edge.strength > 0
-                                    ? "text-emerald-600 dark:text-emerald-400"
-                                    : edge.strength < 0
-                                      ? "text-rose-600 dark:text-rose-400"
-                                      : "text-muted-foreground"
-                                }`}
-                              >
-                                Strength: {formatStrengthPercent(edge.strength)}
-                              </p>
-                              {edge.description ? (
-                                <p className="mt-1 text-xs text-muted-foreground">
-                                  {edge.description}
-                                </p>
-                              ) : null}
-                            </div>
-                          ))
-                        ) : (
-                          <p className="text-sm text-muted-foreground">
-                            No edges available.
-                          </p>
-                        )}
-                      </CardContent>
-                    </Card>
-                  </div>
-                </TabsContent>
-
-                <TabsContent value="backtest" className="space-y-4">
-                  <div className="grid gap-3 sm:grid-cols-3">
-                    <Card>
-                      <CardHeader className="pb-2">
-                        <CardTitle className="text-xs text-muted-foreground">
-                          Accuracy
-                        </CardTitle>
-                      </CardHeader>
-                      <CardContent className="space-y-2">
-                        <p className="text-xl font-semibold">
-                          {formatPercent(backtestData.accuracy)}
-                        </p>
-                        <Badge className={getAccuracyTone(backtestData.accuracy)}>
-                          {getAccuracyTier(backtestData.accuracy) === "high"
-                            ? "High Accuracy"
-                            : getAccuracyTier(backtestData.accuracy) === "moderate"
-                              ? "Moderate Accuracy"
-                              : "Low Accuracy"}
-                        </Badge>
-                      </CardContent>
-                    </Card>
-                    <Card>
-                      <CardHeader className="pb-2">
-                        <CardTitle className="text-xs text-muted-foreground">
-                          Brier Score
-                        </CardTitle>
-                      </CardHeader>
-                      <CardContent>
-                        <p className="text-xl font-semibold">
-                          {formatDecimal(backtestData.brierScore, 4)}
-                        </p>
-                      </CardContent>
-                    </Card>
-                    <Card>
-                      <CardHeader className="pb-2">
-                        <CardTitle className="text-xs text-muted-foreground">
-                          Ensemble Disagreement
-                        </CardTitle>
-                      </CardHeader>
-                      <CardContent>
-                        <p className="text-xl font-semibold">
-                          {formatDecimal(backtestData.ensembleDisagreement, 4)}
-                        </p>
-                      </CardContent>
-                    </Card>
-                  </div>
-
-                  {backtestData.walkForwardResults.length > 0 ? (
-                    <Card>
-                      <CardHeader>
-                        <CardTitle className="text-sm">
-                          Walk-Forward: Predicted vs Actual
-                        </CardTitle>
-                        <CardDescription>
-                          Dashed lines represent the model confidence bounds (P5-P95).
-                        </CardDescription>
-                      </CardHeader>
-                      <CardContent>
-                        <div className="h-72 w-full">
-                          <ResponsiveContainer width="100%" height="100%">
-                            <LineChart data={backtestData.walkForwardResults}>
-                              <CartesianGrid strokeDasharray="3 3" />
-                              <XAxis dataKey="period" tick={{ fontSize: 11 }} />
-                              <YAxis />
-                              <Tooltip
-                                formatter={(value, name) => [
-                                  formatCurrency(toNumber(value)),
-                                  formatVarName(
-                                    toStringValue(name).replace(/\+/g, "_")
-                                  ),
-                                ]}
-                              />
-                              <Line
-                                type="monotone"
-                                dataKey="predicted"
-                                stroke="hsl(var(--primary))"
-                                strokeWidth={2}
-                                dot={false}
-                              />
-                              <Line
-                                type="monotone"
-                                dataKey="actual"
-                                stroke="hsl(var(--muted-foreground))"
-                                strokeWidth={2}
-                                dot={false}
-                              />
-                              <Line
-                                type="monotone"
-                                dataKey="p5"
-                                stroke="hsl(var(--primary))"
-                                strokeOpacity={0.5}
-                                strokeDasharray="6 5"
-                                dot={false}
-                              />
-                              <Line
-                                type="monotone"
-                                dataKey="p95"
-                                stroke="hsl(var(--primary))"
-                                strokeOpacity={0.5}
-                                strokeDasharray="6 5"
-                                dot={false}
-                              />
-                            </LineChart>
-                          </ResponsiveContainer>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  ) : (
-                    <p className="text-sm text-muted-foreground">
-                      No walk-forward backtest data available.
-                    </p>
-                  )}
-                </TabsContent>
-
-                <TabsContent value="agents" className="space-y-4">
-                  <div className="grid gap-4 lg:grid-cols-3">
-                    <Card className="lg:col-span-1">
-                      <CardHeader>
-                        <CardTitle className="text-sm">Convergence Score</CardTitle>
-                      </CardHeader>
-                      <CardContent className="space-y-2">
-                        <p className="text-2xl font-semibold">
-                          {formatPercent(agentData.convergenceScore)}
-                        </p>
-                        <Progress value={agentData.convergenceScore * 100} />
-                      </CardContent>
-                    </Card>
-
-                    <Card className="lg:col-span-2">
-                      <CardHeader>
-                        <CardTitle className="text-sm">Recommendations</CardTitle>
-                      </CardHeader>
-                      <CardContent>
-                        {agentData.recommendations.length > 0 ? (
-                          <ul className="list-disc space-y-1 pl-4 text-sm">
-                            {agentData.recommendations.map((recommendation, idx) => (
-                              <li key={`${recommendation}-${idx}`}>{recommendation}</li>
-                            ))}
-                          </ul>
-                        ) : (
-                          <p className="text-sm text-muted-foreground">
-                            No recommendations available.
-                          </p>
-                        )}
-                      </CardContent>
-                    </Card>
-                  </div>
-
-                  <Card>
-                    <CardHeader>
-                      <CardTitle className="text-sm">
-                        Agent Finding Confidence
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      {agentData.unifiedFindings.length > 0 ? (
-                        <div className="h-64 w-full">
-                          <ResponsiveContainer width="100%" height="100%">
-                            <BarChart
-                              data={agentData.unifiedFindings.map((finding, idx) => ({
-                                id: idx + 1,
-                                label: `F${idx + 1}`,
-                                confidence: finding.confidence * 100,
-                              }))}
-                            >
-                              <CartesianGrid strokeDasharray="3 3" />
-                              <XAxis dataKey="label" />
-                              <YAxis tickFormatter={(value) => `${toNumber(value)}%`} />
-                              <Tooltip
-                                formatter={(value) => [
-                                  formatPercent(toNumber(value)),
-                                  "Confidence",
-                                ]}
-                              />
-                              <Bar dataKey="confidence">
-                                {agentData.unifiedFindings.map((finding, idx) => (
-                                  <Cell
-                                    key={`agent-confidence-${idx}`}
-                                    fill={toImpactColor(finding.confidence * 100, 100)}
-                                  />
-                                ))}
-                              </Bar>
-                            </BarChart>
-                          </ResponsiveContainer>
-                        </div>
-                      ) : (
-                        <p className="text-sm text-muted-foreground">
-                          No confidence data available.
-                        </p>
-                      )}
-                    </CardContent>
-                  </Card>
-
-                  <Card>
-                    <CardHeader>
-                      <CardTitle className="text-sm">Unified Findings</CardTitle>
-                    </CardHeader>
-                    <CardContent className="space-y-3">
-                      {agentData.unifiedFindings.length > 0 ? (
-                        agentData.unifiedFindings.map((finding, idx) => (
-                          <div key={`${finding.summary}-${idx}`} className="rounded-md border p-3">
-                            <div className="mb-1 flex items-center justify-between gap-2">
-                              <p className="text-sm font-medium">{finding.summary}</p>
-                              <Badge variant="secondary">
-                                {formatPercent(finding.confidence)}
-                              </Badge>
-                            </div>
-                            {finding.details ? (
-                              <p className="text-xs text-muted-foreground">{finding.details}</p>
-                            ) : null}
-                          </div>
-                        ))
-                      ) : (
-                        <p className="text-sm text-muted-foreground">
-                          No unified findings available.
-                        </p>
-                      )}
-                    </CardContent>
-                  </Card>
-
-                  <Card>
-                    <CardHeader>
-                      <CardTitle className="text-sm">Debate Rounds</CardTitle>
-                    </CardHeader>
-                    <CardContent className="space-y-2">
-                      {agentData.debateRounds.length > 0 ? (
-                        agentData.debateRounds.map((round) => (
-                          <details key={round.round} className="rounded-md border p-3">
-                            <summary className="cursor-pointer text-sm font-medium">
-                              Round {round.round}
-                            </summary>
-                            <div className="mt-3 space-y-2">
-                              {round.critiques.map((critique, idx) => (
-                                <div key={`${critique.fromAgent}-${critique.toAgent}-${idx}`} className="rounded-md bg-muted/40 p-2">
-                                  <p className="text-xs font-medium">
-                                    {critique.fromAgent} → {critique.toAgent}
-                                  </p>
-                                  <p className="mt-1 text-xs text-muted-foreground whitespace-pre-wrap">
-                                    {critique.critique || "No critique text."}
-                                  </p>
-                                  {critique.response ? (
-                                    <p className="mt-1 text-xs text-muted-foreground whitespace-pre-wrap">
-                                      Response: {critique.response}
-                                    </p>
-                                  ) : null}
-                                </div>
-                              ))}
-                            </div>
-                          </details>
-                        ))
-                      ) : (
-                        <p className="text-sm text-muted-foreground">
-                          No debate rounds available.
-                        </p>
-                      )}
-                    </CardContent>
-                  </Card>
-                </TabsContent>
-              </Tabs>
-            </CardContent>
-          ) : null}
-        </Card>
-      ) : null}
-
-      {/* Scenario builder */}
-      <Tabs value={viewMode} onValueChange={(v) => setViewMode(v as "wizard" | "graph")}>
-        <TabsList>
-          <TabsTrigger value="wizard">
-            <Wand2 className="mr-2 h-3 w-3" />
-            Wizard
-          </TabsTrigger>
-          <TabsTrigger value="graph">
-            <Network className="mr-2 h-3 w-3" />
-            Graph Editor
-          </TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="wizard" className="mt-6">
-          <Card>
-            <CardContent className="flex flex-col items-center justify-center py-12 text-center">
-              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-accent mb-3">
-                <Wand2 className="h-5 w-5 text-muted-foreground" />
-              </div>
-              <h3 className="font-semibold mb-1">Scenario Wizard</h3>
-              <p className="text-sm text-muted-foreground max-w-md mb-4">
-                Build what-if scenarios step by step. Select variables to modify,
-                set new values, and save scenario versions for this project.
-              </p>
-              <Button variant="outline" onClick={() => setWizardOpen(true)}>
-                <Plus className="mr-2 h-4 w-4" />
-                Create Scenario
-              </Button>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="graph" className="mt-6">
-          <Card>
-            <CardContent className="flex flex-col items-center justify-center py-12 text-center">
-              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-accent mb-3">
-                <Network className="h-5 w-5 text-muted-foreground" />
-              </div>
-              <h3 className="font-semibold mb-1">Graph Editor</h3>
-              <p className="text-sm text-muted-foreground max-w-md mb-4">
-                Open a saved scenario to edit causal graphs and run simulations.
-              </p>
-              {selectedScenarioId ? (
-                <Button variant="outline" asChild>
-                  <Link href={`/scenario/${selectedScenarioId}`}>
-                    <Network className="mr-2 h-4 w-4" />
-                    Open Graph Editor
-                  </Link>
-                </Button>
-              ) : scenarios.length > 0 ? (
-                <p className="text-xs text-muted-foreground">
-                  Select a scenario above to open Graph Editor.
-                </p>
-              ) : (
-                <Button variant="outline" onClick={() => setWizardOpen(true)}>
-                  <Plus className="mr-2 h-4 w-4" />
-                  Create Scenario First
-                </Button>
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
-      </Tabs>
-
-      {/* Scenarios list */}
-      <Card>
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <div>
-              <CardTitle className="text-base">Saved Scenarios</CardTitle>
-              <CardDescription>Your saved what-if scenarios</CardDescription>
-            </div>
-            <Button variant="outline" size="sm" onClick={() => setWizardOpen(true)}>
-              <Plus className="mr-2 h-3 w-3" />
-              New Scenario
-            </Button>
-          </div>
-        </CardHeader>
-        <CardContent>
-          {scenarios.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-8 text-center">
-              <p className="text-sm text-muted-foreground">
-                No scenarios yet. Create one using the Wizard above.
-              </p>
-            </div>
-          ) : (
-            <div className="space-y-2">
-              {scenarios.map((scenario) => (
-                <div
-                  key={scenario.id}
-                  onClick={() => setSelectedScenarioId(scenario.id)}
-                  className={`flex w-full cursor-pointer items-center justify-between rounded-lg border p-3 text-left transition-colors hover:bg-accent/50 ${
-                    selectedScenarioId === scenario.id
-                      ? "border-primary/50 bg-accent/40"
-                      : "border-border"
-                  }`}
-                >
-                  <div>
-                    <p className="text-sm font-medium">{scenario.name}</p>
-                    <p className="text-xs text-muted-foreground">
-                      {scenario.variables.length} variable
-                      {scenario.variables.length !== 1 ? "s" : ""} modified
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Badge variant="secondary" className="text-[10px]">
-                      {new Date(scenario.createdAt).toLocaleDateString()}
-                    </Badge>
-                    <Link
-                      href={`/scenario/${scenario.id}`}
-                      className="rounded-sm p-1 hover:bg-accent"
-                      onClick={(event) => event.stopPropagation()}
-                    >
-                      <ArrowRight className="h-3 w-3 text-muted-foreground" />
-                    </Link>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
-      <ScenarioWizard
-        open={wizardOpen}
-        onOpenChange={setWizardOpen}
-        businessId={projectId}
+      {/* Layer 2: Right Action Rail */}
+      <SimulationActionRail
+        isRunning={isRunning}
+        onPlayPause={handleRunSimulation}
+        onInjectEvent={() => {
+          // Demo feature: shake nodes and add a warning
+          setNodes(nds => nds.map(n => ({
+            ...n,
+            data: { ...n.data, status: Math.random() > 0.5 ? "warning" : n.data.status }
+          })));
+        }}
+        onReset={() => {
+          setStatus("idle");
+          setResult(null as any);
+          setShowCharts(false);
+          setNodes([]);
+          setEdges([]);
+        }}
+        onToggleCharts={() => setShowCharts(!showCharts)}
       />
+
+      {/* Layer 3: Insight Overlay */}
+      <SimulationChartOverlay
+        isVisible={showCharts}
+        data={aggregateBaselineProjection.map(p => ({
+          time: p.month,
+          revenue: p.baseline,
+          stress: p.baseline * 0.8 // In a real scenario, this would be the p5/p25 downside risk
+        }))}
+        logs={demoLogs.length > 0 ? demoLogs : [{ id: '1', message: 'Ready to run scenario.', timestamp: new Date().toLocaleTimeString() }]}
+      />
+      {/* Layer 5: Selected Node Details Panel */}
+      {selectedNodeData && (
+        <div className="absolute top-24 right-24 z-40 w-80 bg-black/60 backdrop-blur-2xl border border-white/10 rounded-2xl p-6 shadow-2xl transition-all duration-300 animate-in slide-in-from-right-8">
+          <div className="flex justify-between items-start mb-4">
+            <div>
+              <h3 className="text-xl font-bold text-white capitalize">{selectedNodeData.variable}</h3>
+              <p className="text-xs text-muted-foreground uppercase tracking-wider mt-1">Node Analytics</p>
+            </div>
+            <button
+              onClick={() => setSelectedNodeData(null)}
+              className="text-white/50 hover:text-white transition-colors"
+            >
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M18 6L6 18M6 6L18 18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            </button>
+          </div>
+
+          <div className="space-y-4">
+            {selectedNodeData.mcResult ? (
+              <>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="bg-white/5 rounded-xl p-3 border border-white/5">
+                    <p className="text-[10px] text-white/50 uppercase tracking-widest mb-1">P50 (Median)</p>
+                    <p className="text-lg font-mono text-white">{formatCompact(selectedNodeData.mcResult.p50)}</p>
+                  </div>
+                  <div className="bg-white/5 rounded-xl p-3 border border-white/5">
+                    <p className="text-[10px] text-white/50 uppercase tracking-widest mb-1">Mean</p>
+                    <p className="text-lg font-mono text-white">{formatCompact(selectedNodeData.mcResult.mean)}</p>
+                  </div>
+                </div>
+                <div className="bg-white/5 rounded-xl p-3 border border-white/5">
+                  <div className="flex justify-between mb-1">
+                    <p className="text-[10px] text-white/50 uppercase tracking-widest">90% Confidence Interval</p>
+                  </div>
+                  <div className="flex justify-between items-baseline mt-2">
+                    <p className="text-sm font-mono text-white/80">{formatCompact(selectedNodeData.mcResult.p5)}</p>
+                    <div className="flex-1 mx-3 h-1 bg-gradient-to-r from-emerald-500/20 via-emerald-500/50 to-emerald-500/20 rounded-full" />
+                    <p className="text-sm font-mono text-white/80">{formatCompact(selectedNodeData.mcResult.p95)}</p>
+                  </div>
+                </div>
+              </>
+            ) : (
+              <p className="text-sm text-white/50">No Monte Carlo data available.</p>
+            )}
+
+            {selectedNodeData.sensitivity && (
+              <div className="bg-white/5 rounded-xl p-3 border border-white/5 mt-4">
+                <p className="text-[10px] text-white/50 uppercase tracking-widest mb-2">Sensitivity (Sobol)</p>
+                <div className="flex justify-between items-center">
+                  <span className="text-2xl font-light text-white">{formatDecimal(selectedNodeData.sensitivity.totalSobolIndex, 3)}</span>
+                  <span className={`text-xs px-2 py-1 rounded-full ${selectedNodeData.sensitivity.totalSobolIndex > 0.4 ? 'bg-rose-500/20 text-rose-300' : 'bg-emerald-500/20 text-emerald-300'}`}>
+                    Rank #{selectedNodeData.sensitivity.rank}
+                  </span>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
     </div>
+  );
+}
+
+export default function SimulatePage() {
+  return (
+    <Suspense fallback={<div className="flex h-[calc(100vh-4rem)] items-center justify-center"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white"></div></div>}>
+      <SimulatePageContent />
+    </Suspense>
   );
 }
