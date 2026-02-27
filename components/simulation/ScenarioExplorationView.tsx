@@ -145,7 +145,7 @@ export function ScenarioExplorationView({
         const mockNode = scenario.nodes.find((n) => n.id === node.id);
         if (mockNode && reactFlowInstance) {
           const screenPos = reactFlowInstance.flowToScreenPosition(node.position);
-          setHoverPosition({ x: screenPos.x + 220, y: screenPos.y });
+          setHoverPosition({ x: screenPos.x, y: screenPos.y + 120 });
           setHoveredNode(mockNode);
         }
       }, 300);

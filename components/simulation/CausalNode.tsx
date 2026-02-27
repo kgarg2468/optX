@@ -48,7 +48,7 @@ function CausalNodeComponent({ data, selected }: NodeProps & { data: CausalNodeD
   return (
     <div
       className={cn(
-        "group relative min-w-[180px] max-w-[220px] rounded-xl border bg-card/95 backdrop-blur-sm px-3 py-2.5 shadow-lg transition-all duration-200",
+        "group relative min-w-[220px] max-w-[280px] rounded-xl border bg-card/95 backdrop-blur-sm px-4 py-3.5 shadow-lg transition-all duration-200",
         `border-l-[3px]`,
         config.borderClass,
         selected && "ring-2 ring-offset-1 ring-offset-background shadow-xl",
@@ -58,57 +58,57 @@ function CausalNodeComponent({ data, selected }: NodeProps & { data: CausalNodeD
       <Handle
         type="target"
         position={Position.Left}
-        className="!h-2.5 !w-2.5 !border-2 !border-background !bg-muted-foreground"
+        className="!h-3 !w-3 !border-2 !border-background !bg-muted-foreground"
       />
 
       {/* Pin button */}
       <button
         onClick={handlePinClick}
         className={cn(
-          "absolute top-1.5 right-1.5 h-5 w-5 flex items-center justify-center rounded-full transition-all duration-150",
+          "absolute top-2 right-2 h-6 w-6 flex items-center justify-center rounded-full transition-all duration-150",
           data.isPinned
             ? "bg-amber-500/20 text-amber-400 opacity-100"
             : "opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-foreground hover:bg-muted/50"
         )}
       >
         <Pin
-          className={cn("h-3 w-3", data.isPinned && "fill-amber-400")}
+          className={cn("h-3.5 w-3.5", data.isPinned && "fill-amber-400")}
         />
       </button>
 
       {/* Header: icon + label */}
-      <div className="flex items-center gap-2 mb-2">
+      <div className="flex items-center gap-2.5 mb-2.5">
         <div
           className={cn(
-            "flex h-5 w-5 shrink-0 items-center justify-center rounded",
+            "flex h-7 w-7 shrink-0 items-center justify-center rounded-md",
             config.bgClass
           )}
         >
-          <Icon className={cn("h-3 w-3", config.textClass)} />
+          <Icon className={cn("h-4 w-4", config.textClass)} />
         </div>
-        <p className="text-xs font-semibold truncate text-foreground">{data.label}</p>
+        <p className="text-sm font-bold truncate text-foreground">{data.label}</p>
       </div>
 
       {/* Values */}
       <div className="flex items-baseline justify-between gap-2">
-        <span className="text-sm font-mono font-bold text-foreground">
+        <span className="text-base font-mono font-bold text-foreground">
           {data.proposedValue}
         </span>
-        <div className={cn("flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-[10px] font-medium", deltaInfo.className)}>
-          <DeltaIcon className="h-2.5 w-2.5" />
+        <div className={cn("flex items-center gap-0.5 rounded-full px-2 py-1 text-xs font-medium", deltaInfo.className)}>
+          <DeltaIcon className="h-3 w-3" />
           {data.delta}
         </div>
       </div>
 
       {/* Current value (faded) */}
-      <p className="text-[10px] text-muted-foreground mt-1">
+      <p className="text-[11px] text-muted-foreground mt-1.5">
         was {data.currentValue}
       </p>
 
       <Handle
         type="source"
         position={Position.Right}
-        className="!h-2.5 !w-2.5 !border-2 !border-background !bg-muted-foreground"
+        className="!h-3 !w-3 !border-2 !border-background !bg-muted-foreground"
       />
     </div>
   );

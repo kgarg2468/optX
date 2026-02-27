@@ -12,19 +12,6 @@ interface NodeHoverPopoverProps {
   position: { x: number; y: number };
 }
 
-function generateAIInsight(node: MockCausalNode): string {
-  const category = node.category;
-  const insights: Record<string, string> = {
-    financial: `This financial metric shifts from ${node.currentValue} to ${node.proposedValue}, a ${node.delta} change that directly impacts the bottom line. The causal model shows this is a high-leverage variable for profitability.`,
-    market: `Market dynamics drive this ${node.delta} shift. The change from ${node.currentValue} to ${node.proposedValue} in ${node.label} represents a significant competitive move that cascades through downstream revenue nodes.`,
-    brand: `Brand perception metrics like ${node.label} have delayed but compounding effects. The ${node.delta} improvement builds organic momentum that reduces long-term CAC and strengthens customer LTV.`,
-    operations: `Operational improvements of ${node.delta} in ${node.label} create sustainable cost advantages. Moving from ${node.currentValue} to ${node.proposedValue} compounds over time through efficiency gains.`,
-    metric: `This KPI tracks the combined effect of upstream changes. The ${node.delta} movement in ${node.label} reflects the aggregate impact of multiple causal drivers in the model.`,
-    logic: `This logic node governs conditional effects in the causal chain. When ${node.label} changes by ${node.delta}, it triggers downstream adjustments across connected variables.`,
-  };
-  return insights[category] ?? insights.metric!;
-}
-
 function getDeltaInfo(delta: string) {
   if (delta.startsWith("+") || delta.toLowerCase() === "new" || delta.toLowerCase() === "upgrade") {
     return { icon: TrendingUp, className: "text-emerald-400 bg-emerald-400/10" };
@@ -39,22 +26,26 @@ export function NodeHoverPopover({ node, position }: NodeHoverPopoverProps) {
   const config = NODE_CONFIGS[node.category];
   const deltaInfo = getDeltaInfo(node.delta);
   const DeltaIcon = deltaInfo.icon;
-  const aiInsight = generateAIInsight(node);
 
-  // Viewport-bounded positioning
-  const popoverWidth = 280;
-  const popoverHeight = 260;
+  // Viewport-bounded positioning — expand below node, flip above if overflow
+  const popoverWidth = 240;
+  const popoverHeight = 120;
   const padding = 16;
 
-  let x = position.x + 20;
-  let y = position.y - 20;
+  let x = position.x;
+  let y = position.y;
 
   if (typeof window !== "undefined") {
-    if (x + popoverWidth + padding > window.innerWidth) {
-      x = position.x - popoverWidth - 20;
-    }
+    // Flip above if bottom overflow
     if (y + popoverHeight + padding > window.innerHeight) {
-      y = window.innerHeight - popoverHeight - padding;
+      y = position.y - popoverHeight - 40;
+    }
+    // Clamp left/right
+    if (x + popoverWidth + padding > window.innerWidth) {
+      x = window.innerWidth - popoverWidth - padding;
+    }
+    if (x < padding) {
+      x = padding;
     }
     if (y < padding) {
       y = padding;
@@ -64,17 +55,17 @@ export function NodeHoverPopover({ node, position }: NodeHoverPopoverProps) {
   return (
     <div
       className={cn(
-        "fixed z-50 w-[280px] rounded-xl border bg-card/95 backdrop-blur-md shadow-2xl px-4 py-3 pointer-events-none",
-        "border-l-[3px]",
-        config.borderClass
+        "fixed z-50 w-[240px] rounded-xl border bg-black/80 backdrop-blur-2xl shadow-2xl px-3.5 py-2.5 pointer-events-none",
+        "border-white/10",
+        "shadow-[0_8px_32px_rgba(0,0,0,0.6)]"
       )}
       style={{ left: x, top: y }}
     >
       {/* Header */}
-      <div className="flex items-center gap-2 mb-2">
+      <div className="flex items-center gap-2 mb-1.5">
         <Badge
           variant="outline"
-          className={cn("text-[10px]", config.textClass, config.borderClass)}
+          className={cn("text-[9px] px-1.5 py-0", config.textClass, config.borderClass)}
         >
           {config.label}
         </Badge>
@@ -82,8 +73,8 @@ export function NodeHoverPopover({ node, position }: NodeHoverPopoverProps) {
       </div>
 
       {/* Values row */}
-      <div className="flex items-center gap-2 mb-2">
-        <span className="text-xs text-muted-foreground font-mono">
+      <div className="flex items-center gap-2 mb-1.5">
+        <span className="text-[11px] text-muted-foreground font-mono">
           {node.currentValue}
         </span>
         <span className="text-muted-foreground text-[10px]">&rarr;</span>
@@ -99,20 +90,10 @@ export function NodeHoverPopover({ node, position }: NodeHoverPopoverProps) {
         </div>
       </div>
 
-      {/* Impact */}
-      <p className="text-[11px] text-muted-foreground mb-3">
+      {/* Impact (1 line) */}
+      <p className="text-[11px] text-muted-foreground line-clamp-1">
         {highlightFinanceTerms(node.impact)}
       </p>
-
-      {/* AI Insight */}
-      <div className="border-t border-border/50 pt-2">
-        <p className="text-[10px] font-medium text-muted-foreground mb-1">
-          AI INSIGHT
-        </p>
-        <p className="text-[11px] text-muted-foreground leading-relaxed">
-          {highlightFinanceTerms(aiInsight)}
-        </p>
-      </div>
     </div>
   );
 }
