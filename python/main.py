@@ -738,3 +738,224 @@ async def extract_variables(
         "variables": variables,
         "message": "Variable extraction complete",
     }
+
+
+GENERATE_SCENARIOS_SYSTEM = """You are a strategic business analyst for OptX. Given business data, generate 3-4 strategic scenarios with causal models.
+
+For each scenario, create a network of cause-and-effect nodes showing how business changes propagate through the organization.
+
+Respond with ONLY valid JSON (no markdown, no explanation):
+{
+  "scenarios": [
+    {
+      "title": "Short compelling title (3-6 words)",
+      "tag": "Category tag like 'Most Recommended', 'Best for Profitability', 'Highest Revenue Potential', 'Lowest Risk'",
+      "description": "2-3 sentence description of the strategy",
+      "recommended": false,
+      "revenueImpact": "+X%",
+      "costImpact": "+/-X%",
+      "confidence": 85,
+      "timeToImpact": "3-6 months",
+      "riskLevel": "Low|Medium|High",
+      "netProfitImpact": "+$XK/yr",
+      "keyMetrics": [
+        {"label": "Metric Name", "value": "$X", "delta": "+X%", "positive": true}
+      ],
+      "sparkline": [{"month": 1, "revenue": 200}, {"month": 2, "revenue": 205}, ...],
+      "nodes": [
+        {
+          "id": "n-1",
+          "label": "Node Name",
+          "category": "financial|market|brand|operations|metric",
+          "currentValue": "$X",
+          "proposedValue": "$Y",
+          "delta": "+Z%",
+          "impact": "Description of impact",
+          "position": {"x": 0, "y": 0}
+        }
+      ],
+      "edges": [
+        {"id": "e-1", "source": "n-1", "target": "n-2", "strength": 0.85, "label": "drives"}
+      ]
+    }
+  ]
+}
+
+Rules:
+- Generate exactly 3-4 distinct scenarios covering different strategic approaches
+- Mark ONE as recommended (the best balanced option)
+- Each scenario should have 6-10 nodes with clear causal relationships
+- Position nodes left-to-right (x: 0, 300, 600, 900, 1200) to show causality flow
+- Edge strength 0-1 represents causal influence strength
+- Include upstream (causes) → downstream (effects) logic
+- Revenue numbers should be realistic based on the provided business data
+- Make the first scenario recommended: true, rest false
+- Sparkline should show 12 months of projected revenue
+- Confidence should range 70-95, lower for riskier scenarios"""
+
+
+GENERATE_REPORT_SYSTEM = """You are a financial analyst for OptX. Given simulation results and business data, generate a comprehensive narrative report.
+
+Respond with ONLY valid JSON (no markdown, no explanation):
+{
+  "narrative": {
+    "executiveSummary": "2-3 paragraph executive summary",
+    "keyFindings": ["Finding 1", "Finding 2", ...],
+    "riskAssessment": "Detailed risk assessment paragraph",
+    "recommendations": ["Recommendation 1", "Recommendation 2", ...],
+    "fullNarrative": "Full 3-4 paragraph analysis"
+  }
+}
+
+Rules:
+- Be specific with numbers and percentages
+- Reference the actual simulation data provided
+- Include concrete actionable recommendations
+- Assess risks honestly with mitigation strategies"""
+
+
+class GenerateScenariosRequest(BaseModel):
+    model_config = ConfigDict(populate_by_name=True)
+
+    business_data: dict[str, Any] = Field(default_factory=dict, alias="businessData")
+    data_sources: list[dict[str, Any]] = Field(default_factory=list, alias="dataSources")
+    prompt: Optional[str] = None
+
+
+class GenerateReportRequest(BaseModel):
+    model_config = ConfigDict(populate_by_name=True)
+
+    business_data: dict[str, Any] = Field(default_factory=dict, alias="businessData")
+    simulation_data: dict[str, Any] = Field(default_factory=dict, alias="simulationData")
+    scenario_detail: Optional[dict[str, Any]] = Field(default=None, alias="scenarioDetail")
+
+
+@app.post("/generate-scenarios")
+async def generate_scenarios(
+    request: GenerateScenariosRequest,
+    _: None = Depends(verify_token),
+):
+    """Generate AI-powered strategic scenarios from business data."""
+    try:
+        biz = request.business_data
+        user_content = f"""Business: {biz.get('name', 'Unknown')}
+Industry: {biz.get('industry', 'unknown')}
+Size: {biz.get('size', 'unknown')}
+Monthly Revenue (last 12 months): {biz.get('monthly_revenue', [])}
+Expenses: {json.dumps(biz.get('expenses', []))}
+Cash on Hand: ${biz.get('cash_on_hand', 0):,.0f}
+Outstanding Debt: ${biz.get('outstanding_debt', 0):,.0f}
+Revenue Trend: {biz.get('revenue_trend', 'unknown')}
+Customer Count: {biz.get('customer_count', 'unknown')}
+Avg Transaction: ${biz.get('avg_transaction_size', 0)}
+Gross Margin: {biz.get('gross_margin', 'unknown')}
+
+Data Sources Available: {json.dumps([{'type': ds.get('type'), 'description': ds.get('description')} for ds in request.data_sources])}"""
+
+        if request.prompt:
+            user_content += f"\n\nAdditional user direction: {request.prompt}"
+
+        response = openai_client.chat.completions.create(
+            model="gpt-4o",
+            max_tokens=4096,
+            messages=[
+                {"role": "system", "content": GENERATE_SCENARIOS_SYSTEM},
+                {"role": "user", "content": user_content},
+            ],
+        )
+        reply = response.choices[0].message.content or "{}"
+
+        # Strip markdown code fences if present
+        clean_reply = reply.strip()
+        if clean_reply.startswith("```"):
+            lines = clean_reply.split("\n")
+            lines = lines[1:]  # Remove opening fence
+            if lines and lines[-1].strip() == "```":
+                lines = lines[:-1]  # Remove closing fence
+            clean_reply = "\n".join(lines)
+
+        parsed = json.loads(clean_reply)
+        return parsed
+
+    except json.JSONDecodeError as exc:
+        logger.error("Failed to parse AI scenario response: %s", exc)
+        raise HTTPException(
+            status_code=502,
+            detail="AI returned invalid JSON for scenarios",
+        )
+    except Exception as exc:
+        logger.error("Scenario generation error: %s", exc, exc_info=True)
+        raise HTTPException(
+            status_code=500,
+            detail="Scenario generation failed — check server logs",
+        )
+
+
+@app.post("/generate-report")
+async def generate_report(
+    request: GenerateReportRequest,
+    _: None = Depends(verify_token),
+):
+    """Generate AI-enhanced narrative report from simulation results."""
+    try:
+        sim = request.simulation_data
+        biz = request.business_data
+        scenario = request.scenario_detail
+
+        user_content = f"""Business: {biz.get('name', 'Unknown')}
+Industry: {biz.get('industry', 'unknown')}
+
+Simulation Results:
+- Monte Carlo variables: {len(sim.get('monte_carlo', []))} analyzed
+- Bayesian Network nodes: {len(sim.get('bayesian_network', {}).get('nodes', []))}
+- Sensitivity variables: {len(sim.get('sensitivity', []))}
+- Backtest accuracy: {sim.get('backtest', {}).get('accuracy', 'N/A')}
+- Status: {sim.get('status', 'unknown')}"""
+
+        if scenario:
+            user_content += f"""
+
+Scenario: {scenario.get('title', 'Unknown')}
+Description: {scenario.get('description', '')}
+Revenue Impact: {scenario.get('revenueImpact', 'N/A')}
+Cost Impact: {scenario.get('costImpact', 'N/A')}
+Risk Level: {scenario.get('riskLevel', 'N/A')}
+Confidence: {scenario.get('confidence', 'N/A')}%"""
+
+        response = openai_client.chat.completions.create(
+            model="gpt-4o",
+            max_tokens=2048,
+            messages=[
+                {"role": "system", "content": GENERATE_REPORT_SYSTEM},
+                {"role": "user", "content": user_content},
+            ],
+        )
+        reply = response.choices[0].message.content or "{}"
+
+        # Strip markdown code fences if present
+        clean_reply = reply.strip()
+        if clean_reply.startswith("```"):
+            lines = clean_reply.split("\n")
+            lines = lines[1:]
+            if lines and lines[-1].strip() == "```":
+                lines = lines[:-1]
+            clean_reply = "\n".join(lines)
+
+        return json.loads(clean_reply)
+
+    except json.JSONDecodeError:
+        return {
+            "narrative": {
+                "executiveSummary": "Report generated from simulation results.",
+                "keyFindings": [],
+                "riskAssessment": "See simulation details.",
+                "recommendations": [],
+                "fullNarrative": "",
+            }
+        }
+    except Exception as exc:
+        logger.error("Report generation error: %s", exc, exc_info=True)
+        raise HTTPException(
+            status_code=500,
+            detail="Report generation failed — check server logs",
+        )

@@ -3,9 +3,11 @@
 import { useUIStore } from "@/lib/store/ui-store";
 import { TopBar } from "@/components/layout/TopBar";
 import { cn } from "@/lib/utils";
+import { useSeedLumina } from "@/lib/hooks/use-seed-lumina";
 
 export function LayoutShell({ children }: { children: React.ReactNode }) {
   const collapsed = useUIStore((s) => s.sidebarCollapsed);
+  useSeedLumina();
 
   return (
     <div
@@ -19,3 +21,4 @@ export function LayoutShell({ children }: { children: React.ReactNode }) {
     </div>
   );
 }
+

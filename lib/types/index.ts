@@ -231,6 +231,57 @@ export interface Scenario {
   updatedAt: string;
 }
 
+// --- Scenario Detail (unified type replacing MockScenarioDetail) ---
+
+export interface SparkPoint {
+  month: number;
+  revenue: number;
+}
+
+export interface KeyMetric {
+  label: string;
+  value: string;
+  delta: string;
+  positive: boolean;
+}
+
+export interface CausalNode {
+  id: string;
+  label: string;
+  category: GraphNodeType;
+  currentValue: string;
+  proposedValue: string;
+  delta: string;
+  impact: string;
+  position: { x: number; y: number };
+}
+
+export interface CausalEdge {
+  id: string;
+  source: string;
+  target: string;
+  strength: number;
+  label?: string;
+}
+
+export interface ScenarioDetail {
+  id: string;
+  title: string;
+  tag: string;
+  description: string;
+  recommended: boolean;
+  revenueImpact: string;
+  costImpact: string;
+  confidence: number;
+  timeToImpact: string;
+  riskLevel: "Low" | "Medium" | "High";
+  keyMetrics: KeyMetric[];
+  sparkline: SparkPoint[];
+  nodes: CausalNode[];
+  edges: CausalEdge[];
+  netProfitImpact: string;
+}
+
 // --- Graph Editor ---
 
 export type GraphNodeType =
