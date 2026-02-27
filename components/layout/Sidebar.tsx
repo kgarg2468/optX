@@ -39,14 +39,16 @@ export function Sidebar() {
           collapsed ? "justify-center px-2" : "px-8"
         )}
       >
-        <span
-          className={cn(
-            "optx-wordmark font-black tracking-[0.15em] uppercase bg-gradient-to-r from-white via-white/90 to-lime-400 bg-clip-text text-transparent",
-            collapsed ? "text-lg" : "text-xl"
-          )}
-        >
-          {collapsed ? "O" : "OptX"}
-        </span>
+        <Link href="/" className="hover:opacity-80 transition-opacity">
+          <span
+            className={cn(
+              "optx-wordmark font-black tracking-[0.15em] uppercase bg-gradient-to-r from-white via-white/90 to-lime-400 bg-clip-text text-transparent",
+              collapsed ? "text-lg" : "text-xl"
+            )}
+          >
+            {collapsed ? "O" : "OptX"}
+          </span>
+        </Link>
       </div>
 
       {/* Navigation */}
