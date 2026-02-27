@@ -12,7 +12,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { highlightFinanceTerms } from "@/components/ui/finance-term";
-import type { MockScenarioCard } from "@/lib/mock/simulation-scenarios";
+import type { ScenarioDetail } from "@/lib/types";
 import {
   LineChart,
   Line,
@@ -21,7 +21,7 @@ import {
 } from "recharts";
 
 interface ScenarioCardProps {
-  scenario: MockScenarioCard;
+  scenario: ScenarioDetail;
   onExplore: (id: string) => void;
 }
 

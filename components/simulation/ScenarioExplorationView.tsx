@@ -12,7 +12,7 @@ import {
   type ReactFlowInstance,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
-import { ArrowLeft, PanelRightClose, PanelRightOpen, FileText } from "lucide-react";
+import { ArrowLeft, PanelRightClose, PanelRightOpen, FileText, Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -23,14 +23,17 @@ import type { CausalNodeData } from "./CausalNode";
 import { StringEdge } from "./StringEdge";
 import { NodeHoverPopover } from "./NodeHoverPopover";
 import { ExplorationDetailPanel } from "./ExplorationDetailPanel";
-import { generateMockReport } from "@/lib/mock/report-data";
-import type { MockScenarioDetail, MockCausalNode } from "@/lib/mock/simulation-scenarios";
+import type { ScenarioDetail, CausalNode as CausalNodeType } from "@/lib/types";
+import {
+  LUMINA_BUSINESS_ID,
+  LUMINA_REPORT_ROWS,
+} from "@/lib/seed/lumina-seed";
 
 const nodeTypes = { causal: CausalNode };
 const edgeTypes = { string: StringEdge };
 
 function buildNodes(
-  scenario: MockScenarioDetail,
+  scenario: ScenarioDetail,
   pinnedNodeIds: Set<string>,
   onTogglePin: (nodeId: string) => void
 ): Node[] {
@@ -51,7 +54,7 @@ function buildNodes(
   }));
 }
 
-function buildEdges(scenario: MockScenarioDetail): Edge[] {
+function buildEdges(scenario: ScenarioDetail): Edge[] {
   return scenario.edges.map((e) => {
     const sourceNode = scenario.nodes.find((n) => n.id === e.source);
     const config = sourceNode ? NODE_CONFIGS[sourceNode.category] : null;
@@ -72,21 +75,24 @@ function buildEdges(scenario: MockScenarioDetail): Edge[] {
 }
 
 interface ScenarioExplorationViewProps {
-  scenario: MockScenarioDetail;
+  scenario: ScenarioDetail;
+  businessId: string;
   onBack: () => void;
 }
 
 export function ScenarioExplorationView({
   scenario,
+  businessId,
   onBack,
 }: ScenarioExplorationViewProps) {
   const router = useRouter();
-  const [selectedNode, setSelectedNode] = useState<MockCausalNode | null>(null);
+  const [selectedNode, setSelectedNode] = useState<CausalNodeType | null>(null);
   const [panelOpen, setPanelOpen] = useState(true);
+  const [isGeneratingReport, setIsGeneratingReport] = useState(false);
 
   // Pin state
   const [pinnedNodeIds, setPinnedNodeIds] = useState<Set<string>>(new Set());
-  const togglePinRef = useRef<(nodeId: string) => void>(() => {});
+  const togglePinRef = useRef<(nodeId: string) => void>(() => { });
   togglePinRef.current = useCallback(
     (nodeId: string) => {
       setPinnedNodeIds((prev) => {
@@ -106,7 +112,7 @@ export function ScenarioExplorationView({
   }, []);
 
   // Hover state
-  const [hoveredNode, setHoveredNode] = useState<MockCausalNode | null>(null);
+  const [hoveredNode, setHoveredNode] = useState<CausalNodeType | null>(null);
   const [hoverPosition, setHoverPosition] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
   const hoverTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [reactFlowInstance, setReactFlowInstance] = useState<ReactFlowInstance | null>(null);
@@ -120,15 +126,10 @@ export function ScenarioExplorationView({
   const [rfNodes, , onNodesChange] = useNodesState(nodes);
   const [edges, , onEdgesChange] = useEdgesState(initialEdges);
 
-  // Sync nodes when pinned state changes
-  useMemo(() => {
-    // This is handled by the dependency on pinnedNodeIds in the nodes memo
-  }, [pinnedNodeIds]);
-
   const handleNodeClick = useCallback(
     (_: React.MouseEvent, node: Node) => {
-      const mockNode = scenario.nodes.find((n) => n.id === node.id) ?? null;
-      setSelectedNode(mockNode);
+      const causalNode = scenario.nodes.find((n) => n.id === node.id) ?? null;
+      setSelectedNode(causalNode);
       if (!panelOpen) setPanelOpen(true);
     },
     [scenario, panelOpen]
@@ -142,11 +143,11 @@ export function ScenarioExplorationView({
     (_: React.MouseEvent, node: Node) => {
       if (hoverTimeoutRef.current) clearTimeout(hoverTimeoutRef.current);
       hoverTimeoutRef.current = setTimeout(() => {
-        const mockNode = scenario.nodes.find((n) => n.id === node.id);
-        if (mockNode && reactFlowInstance) {
+        const causalNode = scenario.nodes.find((n) => n.id === node.id);
+        if (causalNode && reactFlowInstance) {
           const screenPos = reactFlowInstance.flowToScreenPosition(node.position);
           setHoverPosition({ x: screenPos.x, y: screenPos.y + 120 });
-          setHoveredNode(mockNode);
+          setHoveredNode(causalNode);
         }
       }, 300);
     },
@@ -158,10 +159,41 @@ export function ScenarioExplorationView({
     setHoveredNode(null);
   }, []);
 
-  const handleGenerateReport = useCallback(() => {
-    const report = generateMockReport(scenario);
-    router.push(`/report/${report.id}`);
-  }, [scenario, router]);
+  const handleGenerateReport = useCallback(async () => {
+    // For Lumina, check if report already exists (use seed data)
+    if (businessId === LUMINA_BUSINESS_ID) {
+      const luminaReport = LUMINA_REPORT_ROWS.find(
+        (r) => r.scenario_detail?.id === scenario.id
+      );
+      if (luminaReport) {
+        router.push(`/report/${luminaReport.id}`);
+        return;
+      }
+    }
+
+    // For other projects, generate report via API
+    setIsGeneratingReport(true);
+    try {
+      // First, we need a simulation — check if one exists for this scenario
+      const res = await fetch("/api/report", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          businessId,
+          simulationId: scenario.id, // scenario ID doubles as sim ref for seeded data
+          scenarioDetail: scenario,
+        }),
+      });
+      const payload = await res.json();
+      if (payload.success && payload.data?.id) {
+        router.push(`/report/${payload.data.id}`);
+      }
+    } catch {
+      // fallback
+    } finally {
+      setIsGeneratingReport(false);
+    }
+  }, [scenario, router, businessId]);
 
   const pinnedNodes = useMemo(
     () => scenario.nodes.filter((n) => pinnedNodeIds.has(n.id)),
@@ -191,7 +223,7 @@ export function ScenarioExplorationView({
               className={cn(
                 "text-[10px]",
                 scenario.recommended &&
-                  "bg-emerald-500/15 text-emerald-400 border-emerald-500/30"
+                "bg-emerald-500/15 text-emerald-400 border-emerald-500/30"
               )}
             >
               {scenario.tag}
@@ -253,8 +285,17 @@ export function ScenarioExplorationView({
           <p className="text-xs text-muted-foreground">
             {scenario.nodes.length} nodes &middot; {scenario.edges.length} connections &middot; {scenario.confidence}% confidence
           </p>
-          <Button size="sm" className="h-8 gap-1.5" onClick={handleGenerateReport}>
-            <FileText className="h-3.5 w-3.5" />
+          <Button
+            size="sm"
+            className="h-8 gap-1.5"
+            onClick={handleGenerateReport}
+            disabled={isGeneratingReport}
+          >
+            {isGeneratingReport ? (
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            ) : (
+              <FileText className="h-3.5 w-3.5" />
+            )}
             Generate Report
           </Button>
         </div>
@@ -269,6 +310,7 @@ export function ScenarioExplorationView({
             onClose={() => setPanelOpen(false)}
             pinnedNodes={pinnedNodes}
             onUnpin={stableTogglePin}
+            businessId={businessId}
           />
         </div>
       )}

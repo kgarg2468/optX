@@ -3,12 +3,12 @@
 import { cn } from "@/lib/utils";
 import { NODE_CONFIGS } from "@/lib/utils/node-config";
 import { highlightFinanceTerms } from "@/components/ui/finance-term";
-import type { MockCausalNode } from "@/lib/mock/simulation-scenarios";
+import type { CausalNode } from "@/lib/types";
 import { TrendingUp, TrendingDown, Minus } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 
 interface NodeHoverPopoverProps {
-  node: MockCausalNode;
+  node: CausalNode;
   position: { x: number; y: number };
 }
 
