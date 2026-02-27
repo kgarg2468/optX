@@ -663,6 +663,7 @@ function SimulatePageContent() {
     currentResult,
     error: simulationError,
     setStatus,
+    setProgress,
     setResult,
     addPastResult,
     setError,
@@ -791,6 +792,26 @@ function SimulatePageContent() {
     setIsRunning(true);
     setError(null);
     setStatus("preparing");
+    setProgress(0);
+
+    // Ticking effect: randomize node values during computation for demo impact
+    let tickProgress = 0;
+    const tickInterval = setInterval(() => {
+      if (tickProgress < 92) {
+        tickProgress += Math.random() * 3;
+        setProgress(Math.min(tickProgress, 92));
+      }
+      setNodes((nds: typeof nodes) =>
+        nds.map((n) => ({
+          ...n,
+          data: {
+            ...n.data,
+            value: (Math.random() * 1000).toFixed(0),
+            status: Math.random() > 0.8 ? "warning" : "normal",
+          },
+        }))
+      );
+    }, 150);
 
     try {
       const res = await fetch("/api/simulate", {
@@ -804,6 +825,9 @@ function SimulatePageContent() {
         }),
       });
       const data = await res.json();
+      clearInterval(tickInterval);
+      setProgress(100);
+
       if (!res.ok || !data.success) {
         throw new Error(data.error || "Failed to run simulation");
       }
@@ -815,6 +839,7 @@ function SimulatePageContent() {
 
       setStatus(data.status ?? "complete");
     } catch (error) {
+      clearInterval(tickInterval);
       setStatus("error");
       setError(error instanceof Error ? error.message : "Simulation failed");
     } finally {

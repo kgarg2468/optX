@@ -176,7 +176,7 @@ function DataPageContent() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-12 max-w-6xl mx-auto px-2 py-8">
       <ProjectHeader
         project={selectedProject}
         projects={projects}
@@ -209,53 +209,54 @@ function DataPageContent() {
         deleteError={deleteError}
       />
 
-      <div>
-        <h2 className="text-2xl font-bold tracking-tight text-white mb-2">Data Ingestion</h2>
-        <p className="text-sm text-white/50">
-          Add business data for the selected project using Quick Start or Advanced Data Sources.
+      <div className="space-y-2">
+        <h2 className="text-4xl font-bold tracking-tighter text-white">Data Ingestion</h2>
+        <p className="text-base text-white/40 font-medium max-w-2xl leading-relaxed">
+          Supply business drivers for the selected project. OptX accepts raw CSV streams or structured quick-start profiles.
         </p>
       </div>
 
       {loadError ? <p className="text-sm text-destructive">{loadError}</p> : null}
 
-      <Tabs
-        value={dataEntryMode}
-        onValueChange={(value) => setDataEntryMode(value as "quick_start" | "advanced")}
-        className="mt-8"
-      >
-        <TabsList className="mb-4">
-          <TabsTrigger value="quick_start">Quick Start</TabsTrigger>
-          <TabsTrigger value="advanced">Advanced Data Sources</TabsTrigger>
-        </TabsList>
-        <TabsContent value="quick_start" className="mt-6">
-          <QuickStartForm
-            onSaved={(savedBusiness) => {
-              const sourceProject = selectedProject;
-              upsertProject({
-                id: savedBusiness.id,
-                name: savedBusiness.name || "Untitled Project",
-                industry: savedBusiness.industry || "other",
-                size: savedBusiness.size || "1-5",
-                updatedAt: savedBusiness.updatedAt || new Date().toISOString(),
-                dataSourceCount: sourceProject?.dataSourceCount ?? 0,
-                scenarioCount: sourceProject?.scenarioCount ?? 0,
-              });
-              setActiveProject(savedBusiness.id);
-              markClean();
-              router.replace(`/data?project=${savedBusiness.id}`);
-              void loadProjects();
-            }}
-          />
-        </TabsContent>
-        <TabsContent value="advanced" className="mt-6">
-          <DataBoxGrid
-            onPersisted={() => {
-              markClean();
-              void loadProjects();
-            }}
-          />
-        </TabsContent>
-      </Tabs>
+      <div className="bg-[#1A1A1A]/40 backdrop-blur-3xl border border-white/5 rounded-3xl p-8 shadow-2xl">
+        <Tabs
+          value={dataEntryMode}
+          onValueChange={(value) => setDataEntryMode(value as "quick_start" | "advanced")}
+        >
+          <TabsList className="mb-8">
+            <TabsTrigger value="quick_start">Quick Start</TabsTrigger>
+            <TabsTrigger value="advanced">Advanced Data Sources</TabsTrigger>
+          </TabsList>
+          <TabsContent value="quick_start" className="mt-0">
+            <QuickStartForm
+              onSaved={(savedBusiness) => {
+                const sourceProject = selectedProject;
+                upsertProject({
+                  id: savedBusiness.id,
+                  name: savedBusiness.name || "Untitled Project",
+                  industry: savedBusiness.industry || "other",
+                  size: savedBusiness.size || "1-5",
+                  updatedAt: savedBusiness.updatedAt || new Date().toISOString(),
+                  dataSourceCount: sourceProject?.dataSourceCount ?? 0,
+                  scenarioCount: sourceProject?.scenarioCount ?? 0,
+                });
+                setActiveProject(savedBusiness.id);
+                markClean();
+                router.replace(`/data?project=${savedBusiness.id}`);
+                void loadProjects();
+              }}
+            />
+          </TabsContent>
+          <TabsContent value="advanced" className="mt-0">
+            <DataBoxGrid
+              onPersisted={() => {
+                markClean();
+                void loadProjects();
+              }}
+            />
+          </TabsContent>
+        </Tabs>
+      </div>
 
       <ProjectSwitchGuard
         open={guardOpen}
