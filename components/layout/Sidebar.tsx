@@ -13,10 +13,10 @@ import {
 } from "@/components/ui/tooltip";
 
 const navItems = [
-  { href: "/", label: "Dashboard", icon: Icons.Dashboard },
-  { href: "/data", label: "Data", icon: Icons.Data },
-  { href: "/simulate", label: "Simulate", icon: Icons.Simulate },
-  { href: "/report", label: "Reports", icon: Icons.Report },
+  { href: "/dashboard", label: "Dashboard", icon: Icons.Dashboard },
+  { href: "/dashboard/data", label: "Data", icon: Icons.Data },
+  { href: "/dashboard/simulate", label: "Simulate", icon: Icons.Simulate },
+  { href: "/dashboard/report", label: "Reports", icon: Icons.Report },
 ];
 
 export function Sidebar() {

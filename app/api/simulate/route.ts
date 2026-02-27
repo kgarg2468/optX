@@ -277,7 +277,7 @@ export async function POST(request: NextRequest) {
       scenario_variables: scenarioVariables,
     };
 
-    const response = await fetch(`${PYTHON_API_URL}/simulate`, {
+    const response = await fetch(`${PYTHON_API_URL}/dashboard/simulate`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(pythonPayload),

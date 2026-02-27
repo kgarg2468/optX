@@ -9,8 +9,8 @@ import {
 const PYTHON_API_URL = process.env.PYTHON_API_URL || "http://localhost:8000";
 
 /**
- * GET /api/report?businessId={id}  — list reports for a business
- * GET /api/report?reportId={id}    — get single report detail
+ * GET /api/dashboard/report?businessId={id}  — list reports for a business
+ * GET /api/dashboard/report?reportId={id}    — get single report detail
  */
 export async function GET(request: NextRequest) {
     try {
@@ -87,7 +87,7 @@ export async function GET(request: NextRequest) {
 }
 
 /**
- * POST /api/report
+ * POST /api/dashboard/report
  * Generate a new report from simulation results (AI + template hybrid)
  */
 export async function POST(request: NextRequest) {

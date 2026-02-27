@@ -58,7 +58,7 @@ export default function ReportPage({
     }
 
     // Fetch from API
-    fetch(`/api/report?reportId=${id}`)
+    fetch(`/api/dashboard/report?reportId=${id}`)
       .then((res) => res.json())
       .then((payload) => {
         if (payload.success && payload.data) {
@@ -150,7 +150,7 @@ export default function ReportPage({
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4">
         <p className="text-muted-foreground">Report not found</p>
-        <Button variant="outline" onClick={() => router.push("/simulate")}>
+        <Button variant="outline" onClick={() => router.push("/dashboard/simulate")}>
           <ArrowLeft className="h-4 w-4 mr-2" />
           Back to Simulation
         </Button>
@@ -172,7 +172,7 @@ export default function ReportPage({
               variant="ghost"
               size="sm"
               className="h-8 gap-1.5 -ml-2"
-              onClick={() => router.push("/simulate")}
+              onClick={() => router.push("/dashboard/simulate")}
             >
               <ArrowLeft className="h-3.5 w-3.5" />
               Back to Exploration

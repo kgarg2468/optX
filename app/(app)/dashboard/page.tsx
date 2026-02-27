@@ -15,21 +15,21 @@ import { Progress } from "@/components/ui/progress";
 
 const quickActions = [
   {
-    href: "/data",
+    href: "/dashboard/data",
     label: "Add Business Data",
     description: "Upload financial data or fill in the guided form",
     icon: Icons.Data,
     color: "text-chart-1",
   },
   {
-    href: "/simulate",
+    href: "/dashboard/simulate",
     label: "Run Simulation",
     description: "Run Monte Carlo simulations on your data",
     icon: Icons.Simulate,
     color: "text-chart-2",
   },
   {
-    href: "/report",
+    href: "/dashboard/report",
     label: "View Reports",
     description: "See AI-generated financial reports",
     icon: Icons.Report,
@@ -158,22 +158,22 @@ export default function Dashboard() {
               {
                 step: "Add your business data",
                 description: "Upload financials or use the guided form",
-                href: "/data",
+                href: "/dashboard/data",
               },
               {
                 step: "Configure simulation",
                 description: "Set parameters and time horizon",
-                href: "/simulate",
+                href: "/dashboard/simulate",
               },
               {
                 step: "Run your first simulation",
                 description: "AI agents analyze your business",
-                href: "/simulate",
+                href: "/dashboard/simulate",
               },
               {
                 step: "Review results",
                 description: "Interactive report with AI insights",
-                href: "/report",
+                href: "/dashboard/report",
               },
             ].map((item, i) => (
               <Link
@@ -208,7 +208,7 @@ export default function Dashboard() {
               </CardDescription>
             </div>
             <Button variant="outline" size="sm" asChild>
-              <Link href="/simulate">
+              <Link href="/dashboard/simulate">
                 <Icons.Plus className="mr-2 h-3 w-3" />
                 New Simulation
               </Link>
@@ -224,7 +224,7 @@ export default function Dashboard() {
               No simulations yet. Add your business data to get started.
             </p>
             <Button variant="link" size="sm" className="mt-2" asChild>
-              <Link href="/data">Add data to begin</Link>
+              <Link href="/dashboard/data">Add data to begin</Link>
             </Button>
           </div>
         </CardContent>
