@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useMemo } from "react";
+import { useState, useCallback, useMemo, useRef } from "react";
 import {
   ReactFlow,
   Background,
@@ -9,21 +9,31 @@ import {
   useEdgesState,
   type Node,
   type Edge,
+  type ReactFlowInstance,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import { ArrowLeft, PanelRightClose, PanelRightOpen, FileText } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { NODE_CONFIGS } from "@/lib/utils/node-config";
 import { CausalNode } from "./CausalNode";
 import type { CausalNodeData } from "./CausalNode";
+import { StringEdge } from "./StringEdge";
+import { NodeHoverPopover } from "./NodeHoverPopover";
 import { ExplorationDetailPanel } from "./ExplorationDetailPanel";
+import { generateMockReport } from "@/lib/mock/report-data";
 import type { MockScenarioDetail, MockCausalNode } from "@/lib/mock/simulation-scenarios";
 
 const nodeTypes = { causal: CausalNode };
+const edgeTypes = { string: StringEdge };
 
-function buildNodes(scenario: MockScenarioDetail): Node[] {
+function buildNodes(
+  scenario: MockScenarioDetail,
+  pinnedNodeIds: Set<string>,
+  onTogglePin: (nodeId: string) => void
+): Node[] {
   return scenario.nodes.map((n) => ({
     id: n.id,
     type: "causal",
@@ -34,13 +44,15 @@ function buildNodes(scenario: MockScenarioDetail): Node[] {
       currentValue: n.currentValue,
       proposedValue: n.proposedValue,
       delta: n.delta,
+      id: n.id,
+      isPinned: pinnedNodeIds.has(n.id),
+      onTogglePin,
     } satisfies CausalNodeData,
   }));
 }
 
 function buildEdges(scenario: MockScenarioDetail): Edge[] {
   return scenario.edges.map((e) => {
-    // Determine color from source node category
     const sourceNode = scenario.nodes.find((n) => n.id === e.source);
     const config = sourceNode ? NODE_CONFIGS[sourceNode.category] : null;
     const color = config ? `hsl(var(--${config.color}))` : "hsl(var(--muted-foreground))";
@@ -49,15 +61,12 @@ function buildEdges(scenario: MockScenarioDetail): Edge[] {
       id: e.id,
       source: e.source,
       target: e.target,
-      animated: e.strength > 0.6,
-      style: {
-        stroke: color,
-        strokeWidth: Math.max(1.5, e.strength * 3),
-        opacity: 0.5 + e.strength * 0.5,
+      type: "string",
+      data: {
+        color,
+        strength: e.strength,
+        label: e.label,
       },
-      label: e.label,
-      labelStyle: { fill: "hsl(var(--muted-foreground))", fontSize: 10 },
-      labelBgStyle: { fill: "hsl(var(--card))", fillOpacity: 0.8 },
     };
   });
 }
@@ -71,14 +80,50 @@ export function ScenarioExplorationView({
   scenario,
   onBack,
 }: ScenarioExplorationViewProps) {
-  const initialNodes = useMemo(() => buildNodes(scenario), [scenario]);
-  const initialEdges = useMemo(() => buildEdges(scenario), [scenario]);
-
-  const [nodes, , onNodesChange] = useNodesState(initialNodes);
-  const [edges, , onEdgesChange] = useEdgesState(initialEdges);
-
+  const router = useRouter();
   const [selectedNode, setSelectedNode] = useState<MockCausalNode | null>(null);
   const [panelOpen, setPanelOpen] = useState(true);
+
+  // Pin state
+  const [pinnedNodeIds, setPinnedNodeIds] = useState<Set<string>>(new Set());
+  const togglePinRef = useRef<(nodeId: string) => void>(() => {});
+  togglePinRef.current = useCallback(
+    (nodeId: string) => {
+      setPinnedNodeIds((prev) => {
+        const next = new Set(prev);
+        if (next.has(nodeId)) {
+          next.delete(nodeId);
+        } else {
+          next.add(nodeId);
+        }
+        return next;
+      });
+    },
+    []
+  );
+  const stableTogglePin = useCallback((nodeId: string) => {
+    togglePinRef.current(nodeId);
+  }, []);
+
+  // Hover state
+  const [hoveredNode, setHoveredNode] = useState<MockCausalNode | null>(null);
+  const [hoverPosition, setHoverPosition] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
+  const hoverTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [reactFlowInstance, setReactFlowInstance] = useState<ReactFlowInstance | null>(null);
+
+  const initialEdges = useMemo(() => buildEdges(scenario), [scenario]);
+  const nodes = useMemo(
+    () => buildNodes(scenario, pinnedNodeIds, stableTogglePin),
+    [scenario, pinnedNodeIds, stableTogglePin]
+  );
+
+  const [rfNodes, , onNodesChange] = useNodesState(nodes);
+  const [edges, , onEdgesChange] = useEdgesState(initialEdges);
+
+  // Sync nodes when pinned state changes
+  useMemo(() => {
+    // This is handled by the dependency on pinnedNodeIds in the nodes memo
+  }, [pinnedNodeIds]);
 
   const handleNodeClick = useCallback(
     (_: React.MouseEvent, node: Node) => {
@@ -92,6 +137,36 @@ export function ScenarioExplorationView({
   const handlePaneClick = useCallback(() => {
     setSelectedNode(null);
   }, []);
+
+  const handleNodeMouseEnter = useCallback(
+    (_: React.MouseEvent, node: Node) => {
+      if (hoverTimeoutRef.current) clearTimeout(hoverTimeoutRef.current);
+      hoverTimeoutRef.current = setTimeout(() => {
+        const mockNode = scenario.nodes.find((n) => n.id === node.id);
+        if (mockNode && reactFlowInstance) {
+          const screenPos = reactFlowInstance.flowToScreenPosition(node.position);
+          setHoverPosition({ x: screenPos.x + 220, y: screenPos.y });
+          setHoveredNode(mockNode);
+        }
+      }, 300);
+    },
+    [scenario, reactFlowInstance]
+  );
+
+  const handleNodeMouseLeave = useCallback(() => {
+    if (hoverTimeoutRef.current) clearTimeout(hoverTimeoutRef.current);
+    setHoveredNode(null);
+  }, []);
+
+  const handleGenerateReport = useCallback(() => {
+    const report = generateMockReport(scenario);
+    router.push(`/report/${report.id}`);
+  }, [scenario, router]);
+
+  const pinnedNodes = useMemo(
+    () => scenario.nodes.filter((n) => pinnedNodeIds.has(n.id)),
+    [scenario.nodes, pinnedNodeIds]
+  );
 
   return (
     <div className="flex h-[calc(100vh-4rem)] overflow-hidden">
@@ -140,15 +215,19 @@ export function ScenarioExplorationView({
         </div>
 
         {/* ReactFlow Canvas */}
-        <div className="flex-1">
+        <div className="flex-1 relative">
           <ReactFlow
             nodes={nodes}
             edges={edges}
             nodeTypes={nodeTypes}
+            edgeTypes={edgeTypes}
             onNodesChange={onNodesChange}
             onEdgesChange={onEdgesChange}
             onNodeClick={handleNodeClick}
             onPaneClick={handlePaneClick}
+            onNodeMouseEnter={handleNodeMouseEnter}
+            onNodeMouseLeave={handleNodeMouseLeave}
+            onInit={(instance) => setReactFlowInstance(instance)}
             fitView
             fitViewOptions={{ padding: 0.3 }}
             proOptions={{ hideAttribution: true }}
@@ -162,6 +241,11 @@ export function ScenarioExplorationView({
               showInteractive={false}
             />
           </ReactFlow>
+
+          {/* Hover popover */}
+          {hoveredNode && (
+            <NodeHoverPopover node={hoveredNode} position={hoverPosition} />
+          )}
         </div>
 
         {/* Bottom bar */}
@@ -169,7 +253,7 @@ export function ScenarioExplorationView({
           <p className="text-xs text-muted-foreground">
             {scenario.nodes.length} nodes &middot; {scenario.edges.length} connections &middot; {scenario.confidence}% confidence
           </p>
-          <Button size="sm" className="h-8 gap-1.5">
+          <Button size="sm" className="h-8 gap-1.5" onClick={handleGenerateReport}>
             <FileText className="h-3.5 w-3.5" />
             Generate Report
           </Button>
@@ -183,6 +267,8 @@ export function ScenarioExplorationView({
             scenario={scenario}
             selectedNode={selectedNode}
             onClose={() => setPanelOpen(false)}
+            pinnedNodes={pinnedNodes}
+            onUnpin={stableTogglePin}
           />
         </div>
       )}

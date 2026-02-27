@@ -8,12 +8,15 @@ import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
 import { NODE_CONFIGS } from "@/lib/utils/node-config";
+import { highlightFinanceTerms } from "@/components/ui/finance-term";
 import type { MockScenarioDetail, MockCausalNode } from "@/lib/mock/simulation-scenarios";
 
 interface ExplorationDetailPanelProps {
   scenario: MockScenarioDetail;
   selectedNode: MockCausalNode | null;
   onClose: () => void;
+  pinnedNodes?: MockCausalNode[];
+  onUnpin?: (nodeId: string) => void;
 }
 
 // Pre-canned chat responses for demo
@@ -24,6 +27,8 @@ const DEMO_RESPONSES: Record<string, string> = {
   timeline:
     "The earliest impact will be seen in month 2-3 for the leading indicators. Full revenue impact typically materializes by month 6 based on similar DTC brand patterns.",
   cost: "The cost structure shifts are front-loaded. Expect months 1-3 to show higher costs before the efficiency gains kick in. Break-even on the additional investment occurs around month 5.",
+  pinned:
+    "Looking at the pinned variables together: these nodes form a connected subgraph in the causal model. Changes in the upstream nodes cascade through to drive the downstream metrics. The combined effect shows strong synergy — the interaction effects amplify individual impacts by roughly 15-20% based on the Bayesian network analysis.",
 };
 
 function getConnectedNodes(scenario: MockScenarioDetail, nodeId: string) {
@@ -44,6 +49,8 @@ export function ExplorationDetailPanel({
   scenario,
   selectedNode,
   onClose,
+  pinnedNodes = [],
+  onUnpin,
 }: ExplorationDetailPanelProps) {
   const [chatMessages, setChatMessages] = useState<
     { role: "user" | "assistant"; content: string }[]
@@ -59,14 +66,20 @@ export function ExplorationDetailPanel({
     ]);
     setChatInput("");
 
-    // Pick a canned response
     setTimeout(() => {
-      let response = DEMO_RESPONSES.default;
-      if (userMsg.includes("risk")) response = DEMO_RESPONSES.risk;
-      else if (userMsg.includes("time") || userMsg.includes("when"))
+      let response: string;
+      if (pinnedNodes.length > 0) {
+        const pinnedContext = pinnedNodes.map((n) => `${n.label} (${n.delta})`).join(", ");
+        response = `Analyzing pinned context: ${pinnedContext}. ${DEMO_RESPONSES.pinned}`;
+      } else if (userMsg.includes("risk")) {
+        response = DEMO_RESPONSES.risk;
+      } else if (userMsg.includes("time") || userMsg.includes("when")) {
         response = DEMO_RESPONSES.timeline;
-      else if (userMsg.includes("cost") || userMsg.includes("spend"))
+      } else if (userMsg.includes("cost") || userMsg.includes("spend")) {
         response = DEMO_RESPONSES.cost;
+      } else {
+        response = DEMO_RESPONSES.default;
+      }
 
       setChatMessages((prev) => [...prev, { role: "assistant", content: response }]);
     }, 600);
@@ -94,6 +107,11 @@ export function ExplorationDetailPanel({
           </TabsTrigger>
           <TabsTrigger value="chat" className="text-xs">
             Chat
+            {pinnedNodes.length > 0 && (
+              <span className="ml-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-amber-500/20 text-[9px] text-amber-400">
+                {pinnedNodes.length}
+              </span>
+            )}
           </TabsTrigger>
         </TabsList>
 
@@ -108,10 +126,41 @@ export function ExplorationDetailPanel({
 
         {/* Chat Tab */}
         <TabsContent value="chat" className="flex-1 flex flex-col px-4 pb-4">
+          {/* Pinned node chips */}
+          {pinnedNodes.length > 0 && (
+            <div className="flex flex-wrap gap-1.5 mb-3">
+              {pinnedNodes.map((node) => {
+                const config = NODE_CONFIGS[node.category];
+                return (
+                  <div
+                    key={node.id}
+                    className={cn(
+                      "flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium border",
+                      config.borderClass,
+                      config.bgClass
+                    )}
+                  >
+                    <span className={config.textClass}>{node.label}</span>
+                    {onUnpin && (
+                      <button
+                        onClick={() => onUnpin(node.id)}
+                        className="ml-0.5 text-muted-foreground hover:text-foreground"
+                      >
+                        <X className="h-2.5 w-2.5" />
+                      </button>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
           <div className="flex-1 overflow-y-auto space-y-3 mb-3">
             {chatMessages.length === 0 && (
               <p className="text-xs text-muted-foreground py-4 text-center">
-                Ask about this scenario...
+                {pinnedNodes.length > 0
+                  ? `${pinnedNodes.length} node${pinnedNodes.length > 1 ? "s" : ""} pinned as context. Ask a question...`
+                  : "Ask about this scenario..."}
               </p>
             )}
             {chatMessages.map((msg, i) => (
@@ -124,7 +173,9 @@ export function ExplorationDetailPanel({
                     : "bg-muted/50 text-foreground mr-4"
                 )}
               >
-                {msg.content}
+                {msg.role === "assistant"
+                  ? highlightFinanceTerms(msg.content)
+                  : msg.content}
               </div>
             ))}
           </div>
@@ -158,7 +209,9 @@ function ScenarioSummary({ scenario }: { scenario: MockScenarioDetail }) {
 
   return (
     <div className="space-y-4 pt-3">
-      <p className="text-xs text-muted-foreground">{scenario.description}</p>
+      <p className="text-xs text-muted-foreground">
+        {highlightFinanceTerms(scenario.description)}
+      </p>
 
       <div className="space-y-2">
         {summaryItems.map((item) => (
@@ -224,7 +277,9 @@ function NodeDetails({
       </div>
 
       {/* Impact description */}
-      <p className="text-xs text-muted-foreground">{node.impact}</p>
+      <p className="text-xs text-muted-foreground">
+        {highlightFinanceTerms(node.impact)}
+      </p>
 
       {/* Connected Nodes */}
       {incoming.length > 0 && (

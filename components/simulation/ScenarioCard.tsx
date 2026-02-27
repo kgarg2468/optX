@@ -11,6 +11,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { highlightFinanceTerms } from "@/components/ui/finance-term";
 import type { MockScenarioCard } from "@/lib/mock/simulation-scenarios";
 import {
   LineChart,
@@ -68,7 +69,7 @@ export function ScenarioCard({ scenario, onExplore }: ScenarioCardProps) {
         </div>
         <CardTitle className="text-base">{title}</CardTitle>
         <CardDescription className="text-xs line-clamp-2">
-          {description}
+          {highlightFinanceTerms(description)}
         </CardDescription>
       </CardHeader>
 
