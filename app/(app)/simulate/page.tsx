@@ -131,7 +131,7 @@ export default function SimulatePage() {
               Select a project to view its simulations and scenarios, or create a
               new one to get started.
             </p>
-            <Link href="/dashboard/data">
+            <Link href="/data">
               <Button className="bg-lime-400 text-forest-950 hover:bg-lime-300">
                 <FolderKanban className="mr-2 h-4 w-4" />
                 Go to Projects

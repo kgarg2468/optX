@@ -47,7 +47,7 @@ export default function ReportsPage() {
     }
 
     setIsLoading(true);
-    fetch(`/api/dashboard/report?businessId=${activeProjectId}`)
+    fetch(`/api/report?businessId=${activeProjectId}`)
       .then((res) => res.json())
       .then((payload) => {
         if (payload.success && Array.isArray(payload.data)) {
@@ -77,7 +77,7 @@ export default function ReportsPage() {
             <p className="text-sm text-muted-foreground max-w-sm">
               Select a project to view its reports.
             </p>
-            <Link href="/dashboard/data" className="mt-4">
+            <Link href="/data" className="mt-4">
               <Button className="bg-lime-400 text-forest-950 hover:bg-lime-300">
                 Go to Projects
               </Button>
@@ -113,7 +113,7 @@ export default function ReportsPage() {
               Reports are generated from simulations. Go to the simulation page,
               explore a scenario, and click &quot;Generate Report&quot;.
             </p>
-            <Link href="/dashboard/simulate" className="mt-4">
+            <Link href="/simulate" className="mt-4">
               <Button variant="outline">Go to Simulation</Button>
             </Link>
           </CardContent>
@@ -132,7 +132,7 @@ export default function ReportsPage() {
                 className={cn(
                   "group glass-card card-hover rounded-xl p-5 cursor-pointer"
                 )}
-                onClick={() => router.push(`/dashboard/report/${report.id}`)}
+                onClick={() => router.push(`/report/${report.id}`)}
               >
                 <div className="flex items-start justify-between mb-3">
                   <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-white/[0.03] border border-white/8">

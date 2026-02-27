@@ -187,7 +187,7 @@ export default function ScenarioPage({
         throw new Error("Failed to save scenario before running simulation");
       }
 
-      const res = await fetch("/api/dashboard/simulate", {
+      const res = await fetch("/api/simulate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -229,7 +229,7 @@ export default function ScenarioPage({
       <div className="flex items-center justify-between border-b border-white/[0.08] px-4 py-2.5 glass-card">
         <div className="flex items-center gap-3">
           <Button variant="ghost" size="icon" className="h-8 w-8" asChild>
-            <Link href="/dashboard/simulate">
+            <Link href="/simulate">
               <ArrowLeft className="h-4 w-4" />
             </Link>
           </Button>

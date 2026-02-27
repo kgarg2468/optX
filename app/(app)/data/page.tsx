@@ -88,7 +88,7 @@ function DataPageContent() {
 
     const load = async () => {
       try {
-        const res = await fetch(`/api/dashboard/data?businessId=${projectId}`, {
+        const res = await fetch(`/api/data?businessId=${projectId}`, {
           signal: controller.signal,
         });
         const payload = await res.json();
@@ -112,7 +112,7 @@ function DataPageContent() {
         setLoadError(
           error instanceof Error ? error.message : "Failed to load project data"
         );
-        router.replace("/dashboard/data");
+        router.replace("/data");
       }
     };
 
@@ -121,7 +121,7 @@ function DataPageContent() {
   }, [projectId, router, setBusinessData, setDataSources, markClean]);
 
   const attemptNavigation = (path: string) => {
-    if (path === `/dashboard/data?project=${projectId}`) return;
+    if (path === `/data?project=${projectId}`) return;
 
     if (isDirty) {
       setPendingPath(path);
@@ -169,8 +169,8 @@ function DataPageContent() {
         isLoading={isLoading}
         error={error}
         onRetry={() => void loadProjects()}
-        onCreate={() => attemptNavigation("/dashboard/data?new=1")}
-        onSelect={(id) => attemptNavigation(`/dashboard/data?project=${id}`)}
+        onCreate={() => attemptNavigation("/data?new=1")}
+        onSelect={(id) => attemptNavigation(`/data?project=${id}`)}
       />
     );
   }
@@ -183,9 +183,9 @@ function DataPageContent() {
       <ProjectHeader
         project={selectedProject}
         projects={projects}
-        onBackToProjects={() => attemptNavigation("/dashboard/data")}
-        onSelectProject={(id) => attemptNavigation(`/dashboard/data?project=${id}`)}
-        onCreateProject={() => attemptNavigation("/dashboard/data?new=1")}
+        onBackToProjects={() => attemptNavigation("/data")}
+        onSelectProject={(id) => attemptNavigation(`/data?project=${id}`)}
+        onCreateProject={() => attemptNavigation("/data?new=1")}
         onRenameProject={
           selectedProject
             ? async (id, name) => {
@@ -245,7 +245,7 @@ function DataPageContent() {
                 });
                 setActiveProject(savedBusiness.id);
                 markClean();
-                router.replace(`/dashboard/data?project=${savedBusiness.id}`);
+                router.replace(`/data?project=${savedBusiness.id}`);
                 void loadProjects();
               }}
             />
