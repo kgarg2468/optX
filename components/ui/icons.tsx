@@ -240,4 +240,11 @@ export const Icons = {
             <path d="M12 16V22" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
         </svg>
     ),
+    Info: (props: IconProps) => (
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" {...props} aria-hidden>
+            <circle cx="12" cy="12" r="9" fill="currentColor" fillOpacity="0.15" stroke="currentColor" strokeWidth="1.5" />
+            <rect x="11.25" y="11" width="1.5" height="5" rx="0.75" fill="currentColor" />
+            <circle cx="12" cy="8" r="1.25" fill="currentColor" />
+        </svg>
+    ),
 };

@@ -17,6 +17,7 @@ const navItems = [
   { href: "/data", label: "Data", icon: Icons.Data },
   { href: "/simulate", label: "Simulate", icon: Icons.Simulate },
   { href: "/report", label: "Reports", icon: Icons.Report },
+  { href: "/how-it-works", label: "Math Info", icon: Icons.Info },
 ];
 
 export function Sidebar() {

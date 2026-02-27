@@ -1,18 +1,29 @@
 "use client"
 
-import React from 'react'
+import React, { useMemo } from 'react'
 import { motion } from 'framer-motion'
 import { BarChart3, ArrowRight } from 'lucide-react'
 
+// Simple seeded PRNG to ensure server and client produce identical values
+function seededRandom(seed: number) {
+    let s = seed
+    return () => {
+        s = (s * 16807 + 0) % 2147483647
+        return (s - 1) / 2147483646
+    }
+}
+
 export const GarchVis = () => {
-    // Generate random clustered volatility points
-    const points = Array.from({ length: 40 }).map((_, i) => {
-        // Artificial volatility clustering (high midway through)
-        const isClustered = i > 15 && i < 25
-        const variance = isClustered ? 40 : 10
-        const val = 50 + (Math.random() * variance * (Math.random() > 0.5 ? 1 : -1))
-        return val
-    })
+    // Generate deterministic clustered volatility points (same on server & client)
+    const points = useMemo(() => {
+        const rng = seededRandom(42)
+        return Array.from({ length: 40 }).map((_, i) => {
+            const isClustered = i > 15 && i < 25
+            const variance = isClustered ? 40 : 10
+            const val = 50 + (rng() * variance * (rng() > 0.5 ? 1 : -1))
+            return val
+        })
+    }, [])
 
     return (
         <div className="w-full h-full relative overflow-hidden flex flex-col items-center justify-center p-8">
