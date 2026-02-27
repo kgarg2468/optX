@@ -1,7 +1,5 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono, Playfair_Display } from "next/font/google";
-import { Sidebar } from "@/components/layout/Sidebar";
-import { LayoutShell } from "@/components/layout/LayoutShell";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -20,9 +18,9 @@ const playfair = Playfair_Display({
 });
 
 export const metadata: Metadata = {
-  title: "OptX — AI Business Simulator",
+  title: "OptX — AI Business Simulation & Optimization Engine",
   description:
-    "AI-powered business simulator with multi-agent analysis and mathematical optimization",
+    "Rigorous mathematical simulation pipeline and agentic debate loop to generate valid venture forecasts and optimize business outcomes.",
 };
 
 export default function RootLayout({
@@ -31,12 +29,11 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className="dark">
+    <html lang="en" className="dark scroll-smooth">
       <body
-        className={`${geistSans.variable} ${geistMono.variable} ${playfair.variable} font-sans antialiased`}
+        className={`${geistSans.variable} ${geistMono.variable} ${playfair.variable} font-sans antialiased text-white bg-black`}
       >
-        <Sidebar />
-        <LayoutShell>{children}</LayoutShell>
+        {children}
       </body>
     </html>
   );
