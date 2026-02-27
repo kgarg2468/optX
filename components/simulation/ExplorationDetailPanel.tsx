@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
-import { X, Send, ArrowRight } from "lucide-react";
+import { useState, useRef, useEffect, useCallback } from "react";
+import { X, Send, Square } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -9,6 +9,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
 import { NODE_CONFIGS } from "@/lib/utils/node-config";
 import { highlightFinanceTerms } from "@/components/ui/finance-term";
+import { MarkdownMessage } from "@/components/ui/MarkdownMessage";
+import { useStreamingChat } from "@/lib/hooks/use-streaming-chat";
 import type { ScenarioDetail, CausalNode } from "@/lib/types";
 
 interface ExplorationDetailPanelProps {
@@ -26,32 +28,32 @@ function buildChatContext(
   pinnedNodes: CausalNode[]
 ): string {
   const parts: string[] = [
-    `Scenario: ${scenario.title}`,
-    `Description: ${scenario.description}`,
-    `Revenue Impact: ${scenario.revenueImpact}, Cost Impact: ${scenario.costImpact}, Net Profit: ${scenario.netProfitImpact}`,
-    `Confidence: ${scenario.confidence}%, Risk: ${scenario.riskLevel}`,
+    `**Scenario:** ${scenario.title}`,
+    `${scenario.description}`,
+    `**Revenue Impact:** ${scenario.revenueImpact} | **Cost Impact:** ${scenario.costImpact} | **Net Profit:** ${scenario.netProfitImpact}`,
+    `**Confidence:** ${scenario.confidence}% | **Risk:** ${scenario.riskLevel}`,
   ];
   if (selectedNode) {
     parts.push(
-      `Selected node: ${selectedNode.label} (${selectedNode.category}) — ${selectedNode.currentValue} → ${selectedNode.proposedValue} (${selectedNode.delta}). Impact: ${selectedNode.impact}`
+      `**Selected node:** ${selectedNode.label} (${selectedNode.category}) — ${selectedNode.currentValue} → ${selectedNode.proposedValue} (${selectedNode.delta}). ${selectedNode.impact}`
     );
   }
   if (pinnedNodes.length > 0) {
     parts.push(
-      `Pinned nodes: ${pinnedNodes.map((n) => `${n.label} (${n.delta})`).join(", ")}`
+      `**Pinned nodes:** ${pinnedNodes.map((n) => `${n.label} (${n.delta})`).join(", ")}`
     );
   }
-  return parts.join("\n");
+  return `[Scenario Context]\n${parts.join("\n")}`;
 }
 
 function generateAIInsight(node: CausalNode): string {
   const insights: Record<string, string> = {
-    financial: `This financial metric shifts from ${node.currentValue} to ${node.proposedValue}, a ${node.delta} change that directly impacts the bottom line. The causal model shows this is a high-leverage variable for profitability.`,
-    market: `Market dynamics drive this ${node.delta} shift. The change from ${node.currentValue} to ${node.proposedValue} in ${node.label} represents a significant competitive move that cascades through downstream revenue nodes.`,
-    brand: `Brand perception metrics like ${node.label} have delayed but compounding effects. The ${node.delta} improvement builds organic momentum that reduces long-term CAC and strengthens customer LTV.`,
-    operations: `Operational improvements of ${node.delta} in ${node.label} create sustainable cost advantages. Moving from ${node.currentValue} to ${node.proposedValue} compounds over time through efficiency gains.`,
-    metric: `This KPI tracks the combined effect of upstream changes. The ${node.delta} movement in ${node.label} reflects the aggregate impact of multiple causal drivers in the model.`,
-    logic: `This logic node governs conditional effects in the causal chain. When ${node.label} changes by ${node.delta}, it triggers downstream adjustments across connected variables.`,
+    financial: `This financial metric shifts from **${node.currentValue}** to **${node.proposedValue}** — a **${node.delta}** change that directly impacts the bottom line. The causal model shows this is a high-leverage variable for profitability.`,
+    market: `Market dynamics drive this **${node.delta}** shift. Moving from **${node.currentValue}** to **${node.proposedValue}** in ${node.label} represents a significant competitive move that cascades through downstream revenue nodes.`,
+    brand: `Brand perception metrics like ${node.label} have delayed but compounding effects. The **${node.delta}** improvement builds organic momentum that reduces long-term CAC and strengthens customer LTV.`,
+    operations: `Operational improvements of **${node.delta}** in ${node.label} create sustainable cost advantages. Moving from **${node.currentValue}** to **${node.proposedValue}** compounds over time through efficiency gains.`,
+    metric: `This KPI tracks the combined effect of upstream changes. The **${node.delta}** movement in ${node.label} reflects the aggregate impact of multiple causal drivers in the model.`,
+    logic: `This logic node governs conditional effects. When ${node.label} changes by **${node.delta}**, it triggers downstream adjustments across connected variables.`,
   };
   return insights[node.category] ?? insights.metric!;
 }
@@ -78,48 +80,28 @@ export function ExplorationDetailPanel({
   onUnpin,
   businessId,
 }: ExplorationDetailPanelProps) {
-  const [chatMessages, setChatMessages] = useState<
-    { role: "user" | "assistant"; content: string }[]
-  >([]);
-  const [chatInput, setChatInput] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
   const chatEndRef = useRef<HTMLDivElement>(null);
+  const [chatInput, setChatInput] = useState("");
+
+  const buildContext = useCallback(
+    () => buildChatContext(scenario, selectedNode, pinnedNodes),
+    [scenario, selectedNode, pinnedNodes]
+  );
+
+  const { messages, isStreaming, send, cancel } = useStreamingChat({
+    context: "simulation",
+    buildContext,
+  });
 
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [chatMessages, isLoading]);
+  }, [messages, isStreaming]);
 
-  const handleSendChat = async () => {
-    if (!chatInput.trim() || isLoading) return;
-    const userMsg = chatInput.trim();
-    setChatMessages((prev) => [...prev, { role: "user", content: userMsg }]);
+  const handleSend = () => {
+    const msg = chatInput.trim();
+    if (!msg) return;
     setChatInput("");
-    setIsLoading(true);
-
-    try {
-      const context = buildChatContext(scenario, selectedNode, pinnedNodes);
-      const res = await fetch("/api/chat", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          message: `[Context]\n${context}\n\n[User question]\n${userMsg}`,
-          scenarioId: scenario.id,
-          history: chatMessages.map((m) => ({ role: m.role, content: m.content })),
-        }),
-      });
-      const data = await res.json();
-      setChatMessages((prev) => [
-        ...prev,
-        { role: "assistant", content: data.reply ?? data.error ?? "No response received." },
-      ]);
-    } catch {
-      setChatMessages((prev) => [
-        ...prev,
-        { role: "assistant", content: "Sorry, I couldn't connect to the AI service. Please check that the Python backend is running." },
-      ]);
-    } finally {
-      setIsLoading(false);
-    }
+    send(msg);
   };
 
   return (
@@ -137,8 +119,8 @@ export function ExplorationDetailPanel({
         </button>
       </div>
 
-      <Tabs defaultValue="details" className="flex-1 flex flex-col">
-        <TabsList className="mx-4 mt-3 grid w-auto grid-cols-2">
+      <Tabs defaultValue="details" className="flex-1 flex flex-col min-h-0">
+        <TabsList className="mx-4 mt-3 grid w-auto grid-cols-2 shrink-0">
           <TabsTrigger value="details" className="text-xs">
             Details
           </TabsTrigger>
@@ -153,7 +135,7 @@ export function ExplorationDetailPanel({
         </TabsList>
 
         {/* Details Tab */}
-        <TabsContent value="details" className="flex-1 overflow-y-auto px-4 pb-4">
+        <TabsContent value="details" className="flex-1 overflow-y-auto px-4 pb-4 min-h-0">
           {selectedNode ? (
             <NodeDetails scenario={scenario} node={selectedNode} />
           ) : (
@@ -162,10 +144,10 @@ export function ExplorationDetailPanel({
         </TabsContent>
 
         {/* Chat Tab */}
-        <TabsContent value="chat" className="flex-1 flex flex-col px-4 pb-4">
+        <TabsContent value="chat" className="flex-1 flex flex-col px-4 pb-4 min-h-0">
           {/* Pinned node chips */}
           {pinnedNodes.length > 0 && (
-            <div className="flex flex-wrap gap-1.5 mb-3">
+            <div className="flex flex-wrap gap-1.5 mb-3 shrink-0">
               {pinnedNodes.map((node) => {
                 const config = NODE_CONFIGS[node.category];
                 return (
@@ -192,57 +174,80 @@ export function ExplorationDetailPanel({
             </div>
           )}
 
-          <div className="flex-1 overflow-y-auto space-y-3 mb-3">
-            {chatMessages.length === 0 && !isLoading && (
+          <div className="flex-1 overflow-y-auto space-y-3 mb-3 pr-1 min-h-0">
+            {messages.length === 0 && (
               <p className="text-xs text-muted-foreground py-4 text-center">
                 {pinnedNodes.length > 0
-                  ? `${pinnedNodes.length} node${pinnedNodes.length > 1 ? "s" : ""} pinned as context. Ask a question...`
-                  : "Ask about this scenario..."}
+                  ? `${pinnedNodes.length} node${pinnedNodes.length > 1 ? "s" : ""} pinned. Ask a question…`
+                  : "Ask about this scenario…"}
               </p>
             )}
-            {chatMessages.map((msg, i) => (
+
+            {messages.map((msg, i) => (
               <div
                 key={i}
-                className={cn(
-                  "text-xs",
-                  msg.role === "user"
-                    ? "flex justify-end"
-                    : ""
-                )}
+                className={cn("text-xs", msg.role === "user" ? "flex justify-end" : "")}
               >
                 {msg.role === "user" ? (
-                  <div className="rounded-xl bg-white/10 px-3 py-2 max-w-[85%]">
+                  <div className="rounded-xl bg-white/10 px-3 py-2 max-w-[85%] text-xs">
                     {msg.content}
                   </div>
                 ) : (
-                  <div className="rounded-xl border border-white/[0.08] bg-white/[0.03] backdrop-blur-sm px-3.5 py-2.5 space-y-1">
-                    <span className="text-[9px] font-medium text-muted-foreground uppercase tracking-wider">OptX</span>
-                    <p className="text-xs leading-relaxed text-foreground">
-                      {highlightFinanceTerms(msg.content)}
-                    </p>
+                  <div className="rounded-xl border border-white/[0.08] bg-white/[0.03] backdrop-blur-sm px-3.5 py-2.5 space-y-1.5">
+                    <div className="flex items-center gap-1.5">
+                      <div className="h-1.5 w-1.5 rounded-full bg-lime-400" />
+                      <span className="text-[9px] font-medium text-muted-foreground uppercase tracking-wider">
+                        OptX
+                      </span>
+                      {msg.streaming && (
+                        <span className="text-[9px] text-muted-foreground/50 animate-pulse">
+                          thinking…
+                        </span>
+                      )}
+                    </div>
+                    <MarkdownMessage
+                      content={msg.content}
+                      streaming={msg.streaming}
+                    />
                   </div>
                 )}
               </div>
             ))}
-            {isLoading && (
+
+            {/* Typing skeleton when waiting for first token */}
+            {isStreaming && messages[messages.length - 1]?.content === "" && (
               <div className="rounded-xl border border-white/[0.08] bg-white/[0.03] px-4 py-3 space-y-2">
                 <div className="h-1.5 w-3/4 rounded-full bg-white/15 animate-pulse" />
                 <div className="h-1.5 w-1/2 rounded-full bg-white/10 animate-pulse [animation-delay:150ms]" />
               </div>
             )}
+
             <div ref={chatEndRef} />
           </div>
-          <div className="flex gap-2">
+
+          <div className="flex gap-2 shrink-0">
             <Input
               value={chatInput}
               onChange={(e) => setChatInput(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && handleSendChat()}
-              placeholder="Ask about risks, timeline..."
+              onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && handleSend()}
+              placeholder="Ask about risks, timeline…"
               className="text-xs h-8"
             />
-            <Button size="sm" className="h-8 w-8 p-0" onClick={handleSendChat}>
-              <Send className="h-3.5 w-3.5" />
-            </Button>
+            {isStreaming ? (
+              <Button
+                size="sm"
+                variant="outline"
+                className="h-8 w-8 p-0 border-rose-500/30 text-rose-400 hover:bg-rose-500/10"
+                onClick={cancel}
+                title="Stop"
+              >
+                <Square className="h-3 w-3 fill-current" />
+              </Button>
+            ) : (
+              <Button size="sm" className="h-8 w-8 p-0" onClick={handleSend}>
+                <Send className="h-3.5 w-3.5" />
+              </Button>
+            )}
           </div>
         </TabsContent>
       </Tabs>
@@ -279,40 +284,26 @@ function ScenarioSummary({ scenario }: { scenario: ScenarioDetail }) {
       </div>
 
       <div className="rounded-lg border border-white/[0.08] p-3">
-        <p className="text-[10px] font-medium text-muted-foreground mb-2">
-          CAUSAL NODES
-        </p>
+        <p className="text-[10px] font-medium text-muted-foreground mb-2">CAUSAL NODES</p>
         <p className="text-xs text-muted-foreground">
-          {scenario.nodes.length} variables &middot;{" "}
-          {scenario.edges.length} connections
+          {scenario.nodes.length} variables &middot; {scenario.edges.length} connections
         </p>
       </div>
     </div>
   );
 }
 
-function NodeDetails({
-  scenario,
-  node,
-}: {
-  scenario: ScenarioDetail;
-  node: CausalNode;
-}) {
+function NodeDetails({ scenario, node }: { scenario: ScenarioDetail; node: CausalNode }) {
   const config = NODE_CONFIGS[node.category];
   const { incoming, outgoing } = getConnectedNodes(scenario, node.id);
   const aiInsight = generateAIInsight(node);
 
   return (
     <div className="space-y-4 pt-3">
-      {/* Category badge */}
-      <Badge
-        variant="outline"
-        className={cn("text-[10px]", config.textClass, config.borderClass)}
-      >
+      <Badge variant="outline" className={cn("text-[10px]", config.textClass, config.borderClass)}>
         {config.label}
       </Badge>
 
-      {/* Current vs Proposed */}
       <div className="grid grid-cols-2 gap-3">
         <div className="rounded-lg bg-muted/30 p-3">
           <p className="text-[10px] text-muted-foreground mb-1">Current</p>
@@ -324,40 +315,27 @@ function NodeDetails({
         </div>
       </div>
 
-      {/* Delta */}
       <div className="rounded-lg bg-muted/30 p-3">
         <p className="text-[10px] text-muted-foreground mb-1">Change</p>
         <p className="text-lg font-bold">{node.delta}</p>
       </div>
 
-      {/* Impact description */}
-      <p className="text-xs text-muted-foreground">
-        {highlightFinanceTerms(node.impact)}
-      </p>
+      <p className="text-xs text-muted-foreground">{highlightFinanceTerms(node.impact)}</p>
 
-      {/* AI Insight */}
       <div className="rounded-xl glass-card px-3.5 py-3 space-y-1.5">
         <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">
           AI Insight
         </p>
-        <p className="text-[11px] text-muted-foreground leading-relaxed">
-          {highlightFinanceTerms(aiInsight)}
-        </p>
+        <MarkdownMessage content={aiInsight} className="text-muted-foreground" />
       </div>
 
-      {/* Connected Nodes */}
       {incoming.length > 0 && (
         <div>
-          <p className="text-[10px] font-medium text-muted-foreground mb-2">
-            DRIVEN BY
-          </p>
+          <p className="text-[10px] font-medium text-muted-foreground mb-2">DRIVEN BY</p>
           <div className="space-y-1.5">
             {incoming.map((n) => (
-              <div
-                key={n.id}
-                className="flex items-center gap-2 text-xs text-muted-foreground"
-              >
-                <ArrowRight className="h-3 w-3 rotate-180" />
+              <div key={n.id} className="flex items-center gap-2 text-xs text-muted-foreground">
+                <span className="text-lg leading-none">←</span>
                 <span>{n.label}</span>
                 <span className="ml-auto font-mono text-[10px]">{n.delta}</span>
               </div>
@@ -368,16 +346,11 @@ function NodeDetails({
 
       {outgoing.length > 0 && (
         <div>
-          <p className="text-[10px] font-medium text-muted-foreground mb-2">
-            DRIVES
-          </p>
+          <p className="text-[10px] font-medium text-muted-foreground mb-2">DRIVES</p>
           <div className="space-y-1.5">
             {outgoing.map((n) => (
-              <div
-                key={n.id}
-                className="flex items-center gap-2 text-xs text-muted-foreground"
-              >
-                <ArrowRight className="h-3 w-3" />
+              <div key={n.id} className="flex items-center gap-2 text-xs text-muted-foreground">
+                <span className="text-lg leading-none">→</span>
                 <span>{n.label}</span>
                 <span className="ml-auto font-mono text-[10px]">{n.delta}</span>
               </div>
