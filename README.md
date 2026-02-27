@@ -1,65 +1,42 @@
 # optX
 
-**Scenario intelligence for strategic decisions.**  
-Model your business, run simulations, and get multi-perspective AI analysis—all in one place.
+**High-grade strategy, without the consulting bill.**
 
 ---
 
 ## The problem
 
-Strategic choices are messy. Variables are uncertain, outcomes are probabilistic, and one lens isn’t enough. Spreadsheets and one-off models don’t capture dependencies, risk, or the full range of what could happen.
+Strategy that actually works—scenario modeling, Monte Carlo, sensitivity analysis, multi-perspective debate—has stayed in the hands of big firms and expensive consultants. Everyone else gets spreadsheets and gut feel. That gap isn’t fair, and it isn’t smart.
 
-## The solution
+## Why it matters
 
-optX turns business scenarios into a **living model**: define variables and relationships, run Monte Carlo and Bayesian simulations, stress-test with sensitivity analysis, and backtest against history. Then six specialized AI agents (market, financial, growth, risk, brand, operations) analyze the scenario, debate, and converge on findings—so you get structured insight, not just a single answer.
+Small and mid-size businesses make the same kind of “what if?” and “which path?” decisions as enterprises. They just can’t afford six-figure engagements to get there. The result: under-informed bets, missed upside, and risk that never gets properly stress-tested. Democratizing real strategy isn’t charity—it’s leveling the field.
 
----
+## Why now
 
-## What you get
+AI-native tooling and agents change the economics. We can run simulations, maintain causal models, and field multiple expert perspectives in one pipeline—at a fraction of the cost and time of traditional consulting. The tech is here; the product wasn’t. Until now.
 
-- **Scenario builder** — Describe scenarios in plain language or build them in a visual graph; NLP and a wizard keep everything in sync.
-- **Simulation engine** — Variable universe → Monte Carlo → Bayesian network → sensitivity analysis → backtesting, in one pipeline.
-- **Multi-agent analysis** — Parallel expert agents with debate rounds and convergence scoring for balanced, auditable recommendations.
-- **Unified workspace** — Business data, scenarios, simulations, and chat live in one app, persisted in Supabase.
+## How optX works
 
----
+You describe scenarios in plain language or build them in a visual graph. optX turns them into a **living model**: variable universe → Monte Carlo → Bayesian network → sensitivity analysis → backtesting. Then **six specialized AI agents** (market, financial, growth, risk, brand, operations) analyze the scenario, debate, and converge on findings. One workspace, one pipeline, structured insight instead of a single black-box answer.
 
-## Tech
+## Why this approach
 
-- **Frontend:** Next.js 16, React 19, Zustand, Tailwind 4, ShadCN, React Flow.
-- **Backend:** Python FastAPI, OpenAI (gpt-4o / gpt-4o-mini), simulation engines and agent coordinator.
-- **Data:** Supabase (PostgreSQL + JSONB) for businesses, scenarios, results, and chat.
-
-Detailed architecture and conventions: see **CLAUDE.md**.
+- **Scenarios first** — Decisions are about alternatives. We model them explicitly instead of one-off point estimates.
+- **Simulation-native** — Uncertainty and dependencies are built in (distributions, networks, backtests), not bolted on.
+- **Multi-agent debate** — One model, one perspective = blind spots. Six agents with debate and convergence scoring give you balanced, auditable recommendations.
+- **Unified stack** — Business data, scenarios, runs, and chat live together. No slide-deck handoffs; the model is the source of truth.
 
 ---
 
 ## Quick start
 
-**1. Frontend**
+**Frontend:** `npm install && npm run dev`  
+**Backend:** `cd python && pip install -r requirements.txt && python -m uvicorn main:app --reload --port 8000`
 
-```bash
-npm install
-npm run dev
-```
+**.env.local:** Supabase URL + anon key + service role key, `PYTHON_API_URL=http://localhost:8000`, `OPENAI_API_KEY` (and same key in `python/.env`). Then open [http://localhost:3000](http://localhost:3000). Both services must run.
 
-**2. Backend** (separate terminal)
-
-```bash
-cd python
-pip install -r requirements.txt
-python -m uvicorn main:app --reload --port 8000
-```
-
-**3. Environment**
-
-Create `.env.local` with:
-
-- `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`
-- `PYTHON_API_URL` (e.g. `http://localhost:8000`)
-- `OPENAI_API_KEY` (also in `python/.env` for the backend)
-
-Open [http://localhost:3000](http://localhost:3000). Both services must be running for full functionality.
+**Stack:** Next.js 16, React 19, Zustand, Tailwind 4, ShadCN, React Flow | Python FastAPI, OpenAI, Supabase. Details in **CLAUDE.md**.
 
 ---
 
