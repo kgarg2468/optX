@@ -19,7 +19,7 @@ function FinanceTerm({ term }: { term: string }) {
   const definition = key ? FINANCE_GLOSSARY[key] : term;
 
   return (
-    <TooltipProvider>
+    <TooltipProvider delayDuration={200}>
       <Tooltip>
         <TooltipTrigger asChild>
           <span
@@ -30,9 +30,10 @@ function FinanceTerm({ term }: { term: string }) {
         </TooltipTrigger>
         <TooltipContent
           side="top"
-          className="max-w-xs bg-card border border-border text-foreground"
+          className="z-[200] max-w-xs rounded-xl px-4 py-3 bg-[oklch(0.08_0.005_285/0.97)] backdrop-blur-2xl border border-white/15 shadow-[0_8px_32px_rgba(0,0,0,0.8),inset_0_1px_0_rgba(255,255,255,0.08)]"
         >
-          <p className="text-xs">{definition}</p>
+          <p className="text-keyword-purple font-medium text-xs mb-1">{key ?? term}</p>
+          <p className="text-xs text-white/80">{definition}</p>
         </TooltipContent>
       </Tooltip>
     </TooltipProvider>

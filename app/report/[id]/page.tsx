@@ -8,19 +8,26 @@ import {
   TrendingUp,
   TrendingDown,
   AlertTriangle,
-  CheckCircle,
-  Circle,
+  Pin,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { REPORT_STORE } from "@/lib/mock/report-data";
-import type { ReportMetric, PLRow, RiskItem, Milestone } from "@/lib/mock/report-data";
+import type { ReportMetric, RiskItem, Milestone } from "@/lib/mock/report-data";
 import { highlightFinanceTerms } from "@/components/ui/finance-term";
 import {
   ReportDetailPanel,
   type ReportDetailItem,
 } from "@/components/report/ReportDetailPanel";
+
+const CHART_COLORS = [
+  "border-l-[hsl(var(--chart-1))]",
+  "border-l-[hsl(var(--chart-2))]",
+  "border-l-[hsl(var(--chart-3))]",
+  "border-l-[hsl(var(--chart-4))]",
+  "border-l-[hsl(var(--chart-5))]",
+];
 
 export default function ReportPage({
   params,
@@ -120,7 +127,7 @@ export default function ReportPage({
                   key={metric.id}
                   metric={metric}
                   isSelected={selectedItems.some((i) => i.id === metric.id)}
-                  onClick={() =>
+                  onPin={() =>
                     addItem({
                       type: "Metric",
                       id: metric.id,
@@ -156,24 +163,15 @@ export default function ReportPage({
                     <th className="text-right px-4 py-2.5 text-[10px] font-medium text-muted-foreground uppercase">
                       Change
                     </th>
+                    <th className="w-8" />
                   </tr>
                 </thead>
                 <tbody>
                   {plTable.map((row) => (
                     <tr
                       key={row.id}
-                      onClick={() =>
-                        addItem({
-                          type: "P&L Line Item",
-                          id: row.id,
-                          title: row.lineItem,
-                          current: row.current,
-                          projected: row.projected,
-                          aiDetail: row.aiDetail,
-                        })
-                      }
                       className={cn(
-                        "border-b border-border/30 cursor-pointer transition-colors hover:bg-muted/20",
+                        "group border-b border-border/30 transition-colors hover:bg-muted/20",
                         selectedItems.some((i) => i.id === row.id) && "bg-muted/30"
                       )}
                     >
@@ -193,6 +191,28 @@ export default function ReportPage({
                         )}
                       >
                         {row.change}
+                      </td>
+                      <td className="pr-2">
+                        <button
+                          onClick={() =>
+                            addItem({
+                              type: "P&L Line Item",
+                              id: row.id,
+                              title: row.lineItem,
+                              current: row.current,
+                              projected: row.projected,
+                              aiDetail: row.aiDetail,
+                            })
+                          }
+                          className={cn(
+                            "h-6 w-6 flex items-center justify-center rounded-full transition-all",
+                            selectedItems.some((i) => i.id === row.id)
+                              ? "text-amber-400 bg-amber-500/20 opacity-100"
+                              : "opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-foreground hover:bg-muted/50"
+                          )}
+                        >
+                          <Pin className={cn("h-3 w-3", selectedItems.some((i) => i.id === row.id) && "fill-amber-400")} />
+                        </button>
                       </td>
                     </tr>
                   ))}
@@ -228,7 +248,7 @@ export default function ReportPage({
                   key={risk.id}
                   risk={risk}
                   isSelected={selectedItems.some((i) => i.id === risk.id)}
-                  onClick={() =>
+                  onPin={() =>
                     addItem({
                       type: "Risk Factor",
                       id: risk.id,
@@ -242,16 +262,16 @@ export default function ReportPage({
             </div>
           </div>
 
-          {/* Implementation Roadmap */}
+          {/* Implementation Roadmap — Vertical Timeline */}
           <div className="pb-8">
             <h2 className="text-xs font-medium text-muted-foreground mb-4 uppercase tracking-wider">
               Implementation Roadmap
             </h2>
-            <div className="relative">
-              {/* Timeline line */}
-              <div className="absolute top-5 left-0 right-0 h-px bg-border/50" />
+            <div className="relative pl-8">
+              {/* Gradient line */}
+              <div className="absolute left-[11px] top-0 bottom-0 w-px bg-gradient-to-b from-white/20 via-white/10 to-transparent" />
 
-              <div className="grid grid-cols-4 gap-4">
+              <div className="space-y-4">
                 {roadmap.map((milestone, i) => (
                   <MilestoneCard
                     key={milestone.id}
@@ -260,7 +280,7 @@ export default function ReportPage({
                     isSelected={selectedItems.some(
                       (item) => item.id === milestone.id
                     )}
-                    onClick={() =>
+                    onPin={() =>
                       addItem({
                         type: "Milestone",
                         id: milestone.id,
@@ -296,20 +316,33 @@ export default function ReportPage({
 function MetricCard({
   metric,
   isSelected,
-  onClick,
+  onPin,
 }: {
   metric: ReportMetric;
   isSelected: boolean;
-  onClick: () => void;
+  onPin: () => void;
 }) {
   return (
     <div
-      onClick={onClick}
       className={cn(
-        "rounded-lg border border-border/50 bg-card/50 p-3 cursor-pointer transition-all hover:bg-muted/20 hover:border-border",
+        "group relative rounded-lg border border-border/50 bg-card/50 p-3 transition-all hover:bg-muted/20 hover:border-border",
+        "shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]",
         isSelected && "ring-1 ring-primary/50 bg-muted/30"
       )}
     >
+      {/* Pin button */}
+      <button
+        onClick={onPin}
+        className={cn(
+          "absolute top-2 right-2 h-5 w-5 flex items-center justify-center rounded-full transition-all",
+          isSelected
+            ? "text-amber-400 bg-amber-500/20 opacity-100"
+            : "opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-foreground hover:bg-muted/50"
+        )}
+      >
+        <Pin className={cn("h-2.5 w-2.5", isSelected && "fill-amber-400")} />
+      </button>
+
       <p className="text-[10px] text-muted-foreground mb-1">{metric.label}</p>
       <p className="text-lg font-bold font-mono">{metric.projected}</p>
       <div className="flex items-center gap-1 mt-1">
@@ -336,21 +369,34 @@ function MetricCard({
 function RiskCard({
   risk,
   isSelected,
-  onClick,
+  onPin,
 }: {
   risk: RiskItem;
   isSelected: boolean;
-  onClick: () => void;
+  onPin: () => void;
 }) {
   return (
     <div
-      onClick={onClick}
       className={cn(
-        "rounded-lg border border-border/50 bg-card/50 p-3 cursor-pointer transition-all hover:bg-muted/20 hover:border-border",
+        "group relative rounded-lg border border-border/50 bg-card/50 p-3 transition-all hover:bg-muted/20 hover:border-border",
+        "shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]",
         isSelected && "ring-1 ring-primary/50 bg-muted/30"
       )}
     >
-      <div className="flex items-center justify-between mb-1.5">
+      {/* Pin button */}
+      <button
+        onClick={onPin}
+        className={cn(
+          "absolute top-2 right-2 h-5 w-5 flex items-center justify-center rounded-full transition-all",
+          isSelected
+            ? "text-amber-400 bg-amber-500/20 opacity-100"
+            : "opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-foreground hover:bg-muted/50"
+        )}
+      >
+        <Pin className={cn("h-2.5 w-2.5", isSelected && "fill-amber-400")} />
+      </button>
+
+      <div className="flex items-center justify-between mb-1.5 pr-6">
         <p className="text-xs font-semibold">{risk.title}</p>
         <Badge
           variant="outline"
@@ -372,55 +418,64 @@ function RiskCard({
   );
 }
 
-// ── Milestone Card ─────────────────────────────────────────────
+// ── Milestone Card — Vertical Timeline ──────────────────────────
 
 function MilestoneCard({
   milestone,
   index,
   isSelected,
-  onClick,
+  onPin,
 }: {
   milestone: Milestone;
   index: number;
   isSelected: boolean;
-  onClick: () => void;
+  onPin: () => void;
 }) {
-  return (
-    <div
-      onClick={onClick}
-      className={cn(
-        "relative cursor-pointer transition-all",
-        isSelected && "scale-[1.02]"
-      )}
-    >
-      {/* Timeline dot */}
-      <div className="flex justify-center mb-3">
-        <div
-          className={cn(
-            "h-3 w-3 rounded-full border-2 z-10",
-            isSelected
-              ? "bg-primary border-primary"
-              : "bg-card border-border"
-          )}
-        />
-      </div>
+  const colorIndex = index % CHART_COLORS.length;
 
+  return (
+    <div className="relative group">
+      {/* Timeline dot */}
       <div
         className={cn(
-          "rounded-lg border border-border/50 bg-card/50 p-3 hover:bg-muted/20 hover:border-border transition-all",
+          "absolute -left-[21px] top-4 h-3 w-3 rounded-full border-2 z-10 transition-all",
+          isSelected
+            ? "bg-primary border-primary shadow-[0_0_12px_rgba(255,255,255,0.2)]"
+            : "bg-card border-border"
+        )}
+      />
+
+      {/* Card */}
+      <div
+        className={cn(
+          "rounded-lg border border-border/50 bg-card/50 p-4 transition-all hover:bg-muted/20 hover:border-border border-l-[3px]",
+          "shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]",
+          CHART_COLORS[colorIndex],
           isSelected && "ring-1 ring-primary/50 bg-muted/30"
         )}
       >
-        <p className="text-[10px] font-medium text-muted-foreground mb-1">
-          {milestone.month}
-        </p>
-        <p className="text-xs font-semibold mb-1 line-clamp-1">
-          {milestone.title}
-        </p>
-        <p className="text-[10px] text-muted-foreground line-clamp-2 mb-2">
+        <div className="flex items-start justify-between mb-2">
+          <Badge variant="secondary" className="text-[9px]">
+            {milestone.month}
+          </Badge>
+          {/* Pin button */}
+          <button
+            onClick={onPin}
+            className={cn(
+              "h-5 w-5 flex items-center justify-center rounded-full transition-all",
+              isSelected
+                ? "text-amber-400 bg-amber-500/20 opacity-100"
+                : "opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-foreground hover:bg-muted/50"
+            )}
+          >
+            <Pin className={cn("h-2.5 w-2.5", isSelected && "fill-amber-400")} />
+          </button>
+        </div>
+        <p className="text-sm font-semibold mb-1.5">{milestone.title}</p>
+        <p className="text-[11px] text-muted-foreground mb-3 leading-relaxed">
           {milestone.description}
         </p>
-        <Badge variant="secondary" className="text-[9px]">
+        <Badge variant="outline" className="text-[9px] text-emerald-400 border-emerald-500/30">
           {milestone.impactMetric}
         </Badge>
       </div>
