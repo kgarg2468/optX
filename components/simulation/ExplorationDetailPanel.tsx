@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { X, Send, ArrowRight } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -19,17 +19,29 @@ interface ExplorationDetailPanelProps {
   onUnpin?: (nodeId: string) => void;
 }
 
-// Pre-canned chat responses for demo
-const DEMO_RESPONSES: Record<string, string> = {
-  default:
-    "Based on the causal model, this scenario shows strong interconnections between the key drivers. The confidence intervals suggest a reliable outcome within the projected range.",
-  risk: "The primary risk factor is execution complexity. I'd recommend phasing the rollout over 3 months to reduce operational risk while maintaining the projected trajectory.",
-  timeline:
-    "The earliest impact will be seen in month 2-3 for the leading indicators. Full revenue impact typically materializes by month 6 based on similar DTC brand patterns.",
-  cost: "The cost structure shifts are front-loaded. Expect months 1-3 to show higher costs before the efficiency gains kick in. Break-even on the additional investment occurs around month 5.",
-  pinned:
-    "Looking at the pinned variables together: these nodes form a connected subgraph in the causal model. Changes in the upstream nodes cascade through to drive the downstream metrics. The combined effect shows strong synergy — the interaction effects amplify individual impacts by roughly 15-20% based on the Bayesian network analysis.",
-};
+function buildChatContext(
+  scenario: MockScenarioDetail,
+  selectedNode: MockCausalNode | null,
+  pinnedNodes: MockCausalNode[]
+): string {
+  const parts: string[] = [
+    `Scenario: ${scenario.title}`,
+    `Description: ${scenario.description}`,
+    `Revenue Impact: ${scenario.revenueImpact}, Cost Impact: ${scenario.costImpact}, Net Profit: ${scenario.netProfitImpact}`,
+    `Confidence: ${scenario.confidence}%, Risk: ${scenario.riskLevel}`,
+  ];
+  if (selectedNode) {
+    parts.push(
+      `Selected node: ${selectedNode.label} (${selectedNode.category}) — ${selectedNode.currentValue} → ${selectedNode.proposedValue} (${selectedNode.delta}). Impact: ${selectedNode.impact}`
+    );
+  }
+  if (pinnedNodes.length > 0) {
+    parts.push(
+      `Pinned nodes: ${pinnedNodes.map((n) => `${n.label} (${n.delta})`).join(", ")}`
+    );
+  }
+  return parts.join("\n");
+}
 
 function generateAIInsight(node: MockCausalNode): string {
   const insights: Record<string, string> = {
@@ -68,37 +80,48 @@ export function ExplorationDetailPanel({
     { role: "user" | "assistant"; content: string }[]
   >([]);
   const [chatInput, setChatInput] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+  const chatEndRef = useRef<HTMLDivElement>(null);
 
-  const handleSendChat = () => {
-    if (!chatInput.trim()) return;
-    const userMsg = chatInput.trim().toLowerCase();
-    setChatMessages((prev) => [
-      ...prev,
-      { role: "user", content: chatInput.trim() },
-    ]);
+  useEffect(() => {
+    chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [chatMessages, isLoading]);
+
+  const handleSendChat = async () => {
+    if (!chatInput.trim() || isLoading) return;
+    const userMsg = chatInput.trim();
+    setChatMessages((prev) => [...prev, { role: "user", content: userMsg }]);
     setChatInput("");
+    setIsLoading(true);
 
-    setTimeout(() => {
-      let response: string;
-      if (pinnedNodes.length > 0) {
-        const pinnedContext = pinnedNodes.map((n) => `${n.label} (${n.delta})`).join(", ");
-        response = `Analyzing pinned context: ${pinnedContext}. ${DEMO_RESPONSES.pinned}`;
-      } else if (userMsg.includes("risk")) {
-        response = DEMO_RESPONSES.risk;
-      } else if (userMsg.includes("time") || userMsg.includes("when")) {
-        response = DEMO_RESPONSES.timeline;
-      } else if (userMsg.includes("cost") || userMsg.includes("spend")) {
-        response = DEMO_RESPONSES.cost;
-      } else {
-        response = DEMO_RESPONSES.default;
-      }
-
-      setChatMessages((prev) => [...prev, { role: "assistant", content: response }]);
-    }, 600);
+    try {
+      const context = buildChatContext(scenario, selectedNode, pinnedNodes);
+      const res = await fetch("/api/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          message: `[Context]\n${context}\n\n[User question]\n${userMsg}`,
+          scenarioId: scenario.id,
+          history: chatMessages.map((m) => ({ role: m.role, content: m.content })),
+        }),
+      });
+      const data = await res.json();
+      setChatMessages((prev) => [
+        ...prev,
+        { role: "assistant", content: data.reply ?? data.error ?? "No response received." },
+      ]);
+    } catch {
+      setChatMessages((prev) => [
+        ...prev,
+        { role: "assistant", content: "Sorry, I couldn't connect to the AI service. Please check that the Python backend is running." },
+      ]);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
-    <div className="flex h-full flex-col border-l border-border/50 bg-card/50 backdrop-blur-sm">
+    <div className="flex h-full flex-col border-l border-white/8 bg-black/40 backdrop-blur-xl shadow-[-20px_0_40px_rgba(0,0,0,0.3)]">
       {/* Header */}
       <div className="flex items-center justify-between border-b border-border/50 px-4 py-3">
         <h3 className="text-sm font-semibold">
@@ -168,7 +191,7 @@ export function ExplorationDetailPanel({
           )}
 
           <div className="flex-1 overflow-y-auto space-y-3 mb-3">
-            {chatMessages.length === 0 && (
+            {chatMessages.length === 0 && !isLoading && (
               <p className="text-xs text-muted-foreground py-4 text-center">
                 {pinnedNodes.length > 0
                   ? `${pinnedNodes.length} node${pinnedNodes.length > 1 ? "s" : ""} pinned as context. Ask a question...`
@@ -179,17 +202,33 @@ export function ExplorationDetailPanel({
               <div
                 key={i}
                 className={cn(
-                  "rounded-lg px-3 py-2 text-xs",
+                  "text-xs",
                   msg.role === "user"
-                    ? "bg-primary/10 text-foreground ml-4"
-                    : "bg-muted/50 text-foreground mr-4"
+                    ? "flex justify-end"
+                    : ""
                 )}
               >
-                {msg.role === "assistant"
-                  ? highlightFinanceTerms(msg.content)
-                  : msg.content}
+                {msg.role === "user" ? (
+                  <div className="rounded-xl bg-white/10 px-3 py-2 max-w-[85%]">
+                    {msg.content}
+                  </div>
+                ) : (
+                  <div className="rounded-xl border border-white/8 bg-white/[0.03] backdrop-blur-sm px-3.5 py-2.5 space-y-1">
+                    <span className="text-[9px] font-medium text-muted-foreground uppercase tracking-wider">OptX</span>
+                    <p className="text-xs leading-relaxed text-foreground">
+                      {highlightFinanceTerms(msg.content)}
+                    </p>
+                  </div>
+                )}
               </div>
             ))}
+            {isLoading && (
+              <div className="rounded-xl border border-white/8 bg-white/[0.03] px-4 py-3 space-y-2">
+                <div className="h-1.5 w-3/4 rounded-full bg-white/15 animate-pulse" />
+                <div className="h-1.5 w-1/2 rounded-full bg-white/10 animate-pulse [animation-delay:150ms]" />
+              </div>
+            )}
+            <div ref={chatEndRef} />
           </div>
           <div className="flex gap-2">
             <Input
