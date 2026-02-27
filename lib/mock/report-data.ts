@@ -1,4 +1,5 @@
 import type { MockScenarioDetail } from "./simulation-scenarios";
+import type { ScenarioDetail } from "@/lib/types";
 
 // ── Types ──────────────────────────────────────────────────────
 
@@ -60,8 +61,8 @@ export interface MockReportData {
 
 // ── Generator ──────────────────────────────────────────────────
 
-export function generateMockReport(scenario: MockScenarioDetail): MockReportData {
-  const id = `rpt-${scenario.id}`;
+export function generateMockReport(scenario: MockScenarioDetail | ScenarioDetail, overrideId?: string): MockReportData {
+  const id = overrideId || `rpt-${scenario.id}`;
 
   // Extract financial nodes for P&L
   const financialNodes = scenario.nodes.filter((n) => n.category === "financial");

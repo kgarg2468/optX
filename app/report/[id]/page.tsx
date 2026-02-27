@@ -1,6 +1,6 @@
 "use client";
 
-import { use, useState, useCallback } from "react";
+import { use, useState, useCallback, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import {
   ArrowLeft,
@@ -9,17 +9,20 @@ import {
   TrendingDown,
   AlertTriangle,
   Pin,
+  Loader2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
-import { REPORT_STORE } from "@/lib/mock/report-data";
-import type { ReportMetric, RiskItem, Milestone } from "@/lib/mock/report-data";
+import { LUMINA_REPORT_ROWS } from "@/lib/seed/lumina-seed";
+import { generateMockReport } from "@/lib/mock/report-data";
+import type { ReportMetric, RiskItem, Milestone, MockReportData } from "@/lib/mock/report-data";
 import { highlightFinanceTerms } from "@/components/ui/finance-term";
 import {
   ReportDetailPanel,
   type ReportDetailItem,
 } from "@/components/report/ReportDetailPanel";
+import { useProjectStore } from "@/lib/store/project-store";
 
 const CHART_COLORS = [
   "border-l-emerald-400",
@@ -36,7 +39,78 @@ export default function ReportPage({
 }) {
   const { id } = use(params);
   const router = useRouter();
-  const report = REPORT_STORE.get(id);
+  const { activeProjectId } = useProjectStore();
+  const [report, setReport] = useState<MockReportData | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+
+  // Load report data
+  useEffect(() => {
+    setIsLoading(true);
+
+    // Check Lumina seed data first (instant)
+    const luminaReport = LUMINA_REPORT_ROWS.find((r) => r.id === id);
+    if (luminaReport && luminaReport.scenario_detail) {
+      // Use the mock report generator for rich UI data
+      const mockReport = generateMockReport(luminaReport.scenario_detail as Parameters<typeof generateMockReport>[0], id);
+      setReport(mockReport);
+      setIsLoading(false);
+      return;
+    }
+
+    // Fetch from API
+    fetch(`/api/report?reportId=${id}`)
+      .then((res) => res.json())
+      .then((payload) => {
+        if (payload.success && payload.data) {
+          const data = payload.data;
+          // Build a MockReportData-compatible object from API data
+          const narrative = data.narrative || {};
+          const sd = data.scenario_detail;
+          const mockReport: MockReportData = {
+            id: data.id,
+            header: {
+              title: sd?.title || "Simulation Report",
+              businessName: "Report",
+              date: new Date(data.created_at || Date.now()).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }),
+              tag: sd?.tag || "AI Generated",
+              confidence: sd?.confidence || 80,
+            },
+            metrics: (sd?.keyMetrics || []).map((m: { label: string; value: string; delta: string; positive: boolean }, i: number) => ({
+              id: `m-${i}`,
+              label: m.label,
+              current: "—",
+              projected: m.value,
+              delta: m.delta,
+              positive: m.positive,
+              aiDetail: `${m.label} projected at ${m.value} (${m.delta} change).`,
+            })),
+            plTable: [],
+            riskAssessment: {
+              overallLevel: sd?.riskLevel || "Medium",
+              confidenceScore: sd?.confidence || 80,
+              items: (data.financial?.riskMatrix || []).map((r: { risk: string; mitigation: string; likelihood: number }, i: number) => ({
+                id: `risk-${i}`,
+                title: r.risk,
+                severity: r.likelihood >= 4 ? "High" : r.likelihood >= 3 ? "Medium" : "Low",
+                description: r.mitigation,
+                aiDetail: r.mitigation,
+              })),
+            },
+            roadmap: (narrative.recommendations || []).map((rec: string, i: number) => ({
+              id: `road-${i}`,
+              month: `Month ${i + 1}`,
+              title: rec.slice(0, 60) + (rec.length > 60 ? "..." : ""),
+              description: rec,
+              impactMetric: sd?.revenueImpact || "TBD",
+              aiDetail: rec,
+            })),
+          };
+          setReport(mockReport);
+        }
+      })
+      .catch(() => { })
+      .finally(() => setIsLoading(false));
+  }, [id]);
 
   const [analysisItems, setAnalysisItems] = useState<ReportDetailItem[]>([]);
   const [pinnedItems, setPinnedItems] = useState<ReportDetailItem[]>([]);
@@ -63,6 +137,14 @@ export default function ReportPage({
   const unpinItem = useCallback((itemId: string) => {
     setPinnedItems((prev) => prev.filter((i) => i.id !== itemId));
   }, []);
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-[60vh]">
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
 
   if (!report) {
     return (

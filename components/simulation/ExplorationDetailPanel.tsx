@@ -9,20 +9,21 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
 import { NODE_CONFIGS } from "@/lib/utils/node-config";
 import { highlightFinanceTerms } from "@/components/ui/finance-term";
-import type { MockScenarioDetail, MockCausalNode } from "@/lib/mock/simulation-scenarios";
+import type { ScenarioDetail, CausalNode } from "@/lib/types";
 
 interface ExplorationDetailPanelProps {
-  scenario: MockScenarioDetail;
-  selectedNode: MockCausalNode | null;
+  scenario: ScenarioDetail;
+  selectedNode: CausalNode | null;
   onClose: () => void;
-  pinnedNodes?: MockCausalNode[];
+  pinnedNodes?: CausalNode[];
   onUnpin?: (nodeId: string) => void;
+  businessId?: string;
 }
 
 function buildChatContext(
-  scenario: MockScenarioDetail,
-  selectedNode: MockCausalNode | null,
-  pinnedNodes: MockCausalNode[]
+  scenario: ScenarioDetail,
+  selectedNode: CausalNode | null,
+  pinnedNodes: CausalNode[]
 ): string {
   const parts: string[] = [
     `Scenario: ${scenario.title}`,
@@ -43,7 +44,7 @@ function buildChatContext(
   return parts.join("\n");
 }
 
-function generateAIInsight(node: MockCausalNode): string {
+function generateAIInsight(node: CausalNode): string {
   const insights: Record<string, string> = {
     financial: `This financial metric shifts from ${node.currentValue} to ${node.proposedValue}, a ${node.delta} change that directly impacts the bottom line. The causal model shows this is a high-leverage variable for profitability.`,
     market: `Market dynamics drive this ${node.delta} shift. The change from ${node.currentValue} to ${node.proposedValue} in ${node.label} represents a significant competitive move that cascades through downstream revenue nodes.`,
@@ -55,16 +56,16 @@ function generateAIInsight(node: MockCausalNode): string {
   return insights[node.category] ?? insights.metric!;
 }
 
-function getConnectedNodes(scenario: MockScenarioDetail, nodeId: string) {
+function getConnectedNodes(scenario: ScenarioDetail, nodeId: string) {
   const incoming = scenario.edges
     .filter((e) => e.target === nodeId)
     .map((e) => scenario.nodes.find((n) => n.id === e.source))
-    .filter(Boolean) as MockCausalNode[];
+    .filter(Boolean) as CausalNode[];
 
   const outgoing = scenario.edges
     .filter((e) => e.source === nodeId)
     .map((e) => scenario.nodes.find((n) => n.id === e.target))
-    .filter(Boolean) as MockCausalNode[];
+    .filter(Boolean) as CausalNode[];
 
   return { incoming, outgoing };
 }
@@ -75,6 +76,7 @@ export function ExplorationDetailPanel({
   onClose,
   pinnedNodes = [],
   onUnpin,
+  businessId,
 }: ExplorationDetailPanelProps) {
   const [chatMessages, setChatMessages] = useState<
     { role: "user" | "assistant"; content: string }[]
@@ -248,7 +250,7 @@ export function ExplorationDetailPanel({
   );
 }
 
-function ScenarioSummary({ scenario }: { scenario: MockScenarioDetail }) {
+function ScenarioSummary({ scenario }: { scenario: ScenarioDetail }) {
   const summaryItems = [
     { label: "Revenue Impact", value: scenario.revenueImpact },
     { label: "Cost Impact", value: scenario.costImpact },
@@ -293,8 +295,8 @@ function NodeDetails({
   scenario,
   node,
 }: {
-  scenario: MockScenarioDetail;
-  node: MockCausalNode;
+  scenario: ScenarioDetail;
+  node: CausalNode;
 }) {
   const config = NODE_CONFIGS[node.category];
   const { incoming, outgoing } = getConnectedNodes(scenario, node.id);
