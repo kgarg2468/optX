@@ -1,18 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import {
-  Database,
-  Play,
-  FileText,
-  TrendingUp,
-  AlertTriangle,
-  BarChart3,
-  ArrowRight,
-  Plus,
-  Clock,
-  CheckCircle2,
-} from "lucide-react";
+import { Icons } from "@/components/ui/icons";
 import {
   Card,
   CardContent,
@@ -29,21 +18,21 @@ const quickActions = [
     href: "/data",
     label: "Add Business Data",
     description: "Upload financial data or fill in the guided form",
-    icon: Database,
+    icon: Icons.Data,
     color: "text-chart-1",
   },
   {
     href: "/simulate",
     label: "Run Simulation",
     description: "Run Monte Carlo simulations on your data",
-    icon: Play,
+    icon: Icons.Simulate,
     color: "text-chart-2",
   },
   {
     href: "/report",
     label: "View Reports",
     description: "See AI-generated financial reports",
-    icon: FileText,
+    icon: Icons.Report,
     color: "text-chart-3",
   },
 ];
@@ -53,28 +42,28 @@ const stats = [
     label: "Data Sources",
     value: "0",
     description: "No data uploaded yet",
-    icon: Database,
+    icon: Icons.Data,
     color: "text-chart-1",
   },
   {
     label: "Simulations",
     value: "0",
     description: "Run your first simulation",
-    icon: BarChart3,
+    icon: Icons.BarChart,
     color: "text-chart-2",
   },
   {
     label: "Scenarios",
     value: "0",
     description: "Create what-if scenarios",
-    icon: TrendingUp,
+    icon: Icons.TrendingUp,
     color: "text-chart-4",
   },
   {
     label: "Risk Alerts",
     value: "0",
     description: "No alerts",
-    icon: AlertTriangle,
+    icon: Icons.AlertTriangle,
     color: "text-chart-5",
   },
 ];
@@ -139,7 +128,7 @@ export default function Dashboard() {
                     </p>
                   </div>
                   <div className="mt-1 flex h-8 w-8 items-center justify-center rounded-full bg-white/5 opacity-0 transition-all duration-300 group-hover:opacity-100 group-hover:translate-x-1">
-                    <ArrowRight className="h-4 w-4 text-white" />
+                    <Icons.ArrowRight className="h-4 w-4 text-white" />
                   </div>
                 </CardContent>
               </Card>
@@ -201,7 +190,7 @@ export default function Dashboard() {
                     {item.description}
                   </p>
                 </div>
-                <ArrowRight className="h-4 w-4 text-muted-foreground transition-transform duration-300 group-hover:translate-x-1 group-hover:text-white" />
+                <Icons.ArrowRight className="h-4 w-4 text-muted-foreground transition-transform duration-300 group-hover:translate-x-1 group-hover:text-white" />
               </Link>
             ))}
           </div>
@@ -220,7 +209,7 @@ export default function Dashboard() {
             </div>
             <Button variant="outline" size="sm" asChild>
               <Link href="/simulate">
-                <Plus className="mr-2 h-3 w-3" />
+                <Icons.Plus className="mr-2 h-3 w-3" />
                 New Simulation
               </Link>
             </Button>
@@ -229,7 +218,7 @@ export default function Dashboard() {
         <CardContent>
           <div className="flex flex-col items-center justify-center py-8 text-center">
             <div className="flex h-12 w-12 items-center justify-center rounded-full bg-accent mb-3">
-              <Clock className="h-5 w-5 text-muted-foreground" />
+              <Icons.Clock className="h-5 w-5 text-muted-foreground" />
             </div>
             <p className="text-sm text-muted-foreground">
               No simulations yet. Add your business data to get started.

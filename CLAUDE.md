@@ -34,8 +34,9 @@ Next.js API routes also read/write Supabase server-side (lib/supabase/server.ts)
 ```
 
 ### Frontend State
-Five independent Zustand stores in `lib/store/`:
+Six independent Zustand stores in `lib/store/`:
 - **business-store** — business data, data sources, entry mode
+- **project-store** — project CRUD, active project selection
 - **scenario-store** — scenarios, graph state (nodes/edges), view mode
 - **simulation-store** — config, status, progress, results
 - **chat-store** — messages, streaming state, contextReportId, contextScenarioId
@@ -68,8 +69,19 @@ All types are centralized in `lib/types/index.ts`. Key type hierarchies:
 - **Sync** — `lib/utils/graph-sync.ts` provides `variablesToGraph()` and `graphToVariables()` for bidirectional wizard↔graph conversion
 - **Node types** — 6 types (financial, market, brand, operations, logic, metric) configured in `lib/utils/node-config.ts`
 
-### UI Components
-ShadCN components live in `components/ui/`. Import path: `@/components/ui/button`. Uses Tailwind CSS 4 with OKLCH color space (base color: zinc). Theme defined in `app/globals.css` with CSS custom properties. Dark mode is the default.
+### UI & Design System
+ShadCN components live in `components/ui/`. Import path: `@/components/ui/button`.
+
+**Theme:** Glassmorphic aesthetic — forest green/lime/emerald palette with glass blur effects. Defined in `app/globals.css` with CSS custom properties. Dark mode is the default.
+
+- **Fonts:** Playfair Display (serif, h1/h2 display only via `font-playfair`), Geist Sans (body/UI), Geist Mono (code). All loaded in `app/layout.tsx`.
+- **Colors:** Forest greens for backgrounds (`--forest-950` through `--forest-700`), lime-400 (`#C5D46A`) as primary accent, emerald-500 (`#10B981`) as secondary, rose for destructive.
+- **Glass utilities:** `glass-card` (blur-24px, white/5% bg) and `glass-heavy` (blur-40px, forest/70% bg) classes in globals.css. Apply to cards, panels, modals, sidebar — NOT to inputs, tables, or graph canvas.
+- **Animation utilities:** `card-hover` (translateY lift), `btn-hover` (scale + glow), `sidebar-item-active` (lime glow). `ambient-blob` + `blob-emerald`/`blob-lime` for dashboard/data pages only.
+- **Body gradient:** `linear-gradient(180deg, #FFFFFF 0%, #F5F5F5 15%, #0D1F1C 45%, #021a13 100%)` — white top, forest bottom. Content adapts text color by position.
+- **Border radius:** 2rem base (`--radius`). Cards use `rounded-xl` (32px), buttons/inputs `rounded-md` (16px), badges `rounded-3xl` (48px pills).
+
+Uses Tailwind CSS 4 with `@theme inline` for CSS variable mapping.
 
 ## Key Conventions
 

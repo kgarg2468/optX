@@ -38,17 +38,30 @@ export default function ReportPage({
   const router = useRouter();
   const report = REPORT_STORE.get(id);
 
-  const [selectedItems, setSelectedItems] = useState<ReportDetailItem[]>([]);
+  const [analysisItems, setAnalysisItems] = useState<ReportDetailItem[]>([]);
+  const [pinnedItems, setPinnedItems] = useState<ReportDetailItem[]>([]);
 
-  const addItem = useCallback((item: ReportDetailItem) => {
-    setSelectedItems((prev) => {
+  const toggleAnalysisItem = useCallback((item: ReportDetailItem) => {
+    setAnalysisItems((prev) =>
+      prev.some((i) => i.id === item.id)
+        ? prev.filter((i) => i.id !== item.id)
+        : [...prev, item]
+    );
+  }, []);
+
+  const dismissAnalysisItem = useCallback((itemId: string) => {
+    setAnalysisItems((prev) => prev.filter((i) => i.id !== itemId));
+  }, []);
+
+  const pinItem = useCallback((item: ReportDetailItem) => {
+    setPinnedItems((prev) => {
       if (prev.some((i) => i.id === item.id)) return prev;
       return [...prev, item];
     });
   }, []);
 
-  const dismissItem = useCallback((itemId: string) => {
-    setSelectedItems((prev) => prev.filter((i) => i.id !== itemId));
+  const unpinItem = useCallback((itemId: string) => {
+    setPinnedItems((prev) => prev.filter((i) => i.id !== itemId));
   }, []);
 
   if (!report) {
@@ -64,6 +77,7 @@ export default function ReportPage({
   }
 
   const { header, metrics, plTable, riskAssessment, roadmap } = report;
+  const isPanelOpen = analysisItems.length > 0 || pinnedItems.length > 0;
 
   return (
     <div className="flex h-[calc(100vh-4rem)] overflow-hidden">
@@ -126,9 +140,20 @@ export default function ReportPage({
                 <MetricCard
                   key={metric.id}
                   metric={metric}
-                  isSelected={selectedItems.some((i) => i.id === metric.id)}
+                  isPreviewed={analysisItems.some((i) => i.id === metric.id)}
+                  isPinned={pinnedItems.some((i) => i.id === metric.id)}
+                  onClick={() =>
+                    toggleAnalysisItem({
+                      type: "Metric",
+                      id: metric.id,
+                      title: metric.label,
+                      current: metric.current,
+                      projected: metric.projected,
+                      aiDetail: metric.aiDetail,
+                    })
+                  }
                   onPin={() =>
-                    addItem({
+                    pinItem({
                       type: "Metric",
                       id: metric.id,
                       title: metric.label,
@@ -167,55 +192,73 @@ export default function ReportPage({
                   </tr>
                 </thead>
                 <tbody>
-                  {plTable.map((row) => (
-                    <tr
-                      key={row.id}
-                      className={cn(
-                        "group border-b border-border/30 transition-colors hover:bg-muted/20",
-                        selectedItems.some((i) => i.id === row.id) && "bg-muted/30"
-                      )}
-                    >
-                      <td className="px-4 py-2.5 text-xs font-medium">
-                        {highlightFinanceTerms(row.lineItem)}
-                      </td>
-                      <td className="px-4 py-2.5 text-xs text-muted-foreground font-mono text-right">
-                        {row.current}
-                      </td>
-                      <td className="px-4 py-2.5 text-xs font-mono font-semibold text-right">
-                        {row.projected}
-                      </td>
-                      <td
+                  {plTable.map((row) => {
+                    const isPreviewed = analysisItems.some((i) => i.id === row.id);
+                    const isPinned = pinnedItems.some((i) => i.id === row.id);
+
+                    return (
+                      <tr
+                        key={row.id}
+                        onClick={() =>
+                          toggleAnalysisItem({
+                            type: "P&L Line Item",
+                            id: row.id,
+                            title: row.lineItem,
+                            current: row.current,
+                            projected: row.projected,
+                            aiDetail: row.aiDetail,
+                          })
+                        }
                         className={cn(
-                          "px-4 py-2.5 text-xs font-mono font-medium text-right",
-                          row.positive ? "text-emerald-400" : "text-rose-400"
+                          "group border-b border-border/30 transition-colors hover:bg-white/[0.04] cursor-pointer",
+                          isPreviewed && "bg-white/[0.06]",
+                          isPinned && "bg-amber-500/5 group-hover:bg-amber-500/10"
                         )}
                       >
-                        {row.change}
-                      </td>
-                      <td className="pr-2">
-                        <button
-                          onClick={() =>
-                            addItem({
-                              type: "P&L Line Item",
-                              id: row.id,
-                              title: row.lineItem,
-                              current: row.current,
-                              projected: row.projected,
-                              aiDetail: row.aiDetail,
-                            })
-                          }
+                        <td className="px-4 py-2.5 text-xs font-medium">
+                          {highlightFinanceTerms(row.lineItem)}
+                        </td>
+                        <td className="px-4 py-2.5 text-xs text-muted-foreground font-mono text-right">
+                          {row.current}
+                        </td>
+                        <td className="px-4 py-2.5 text-xs font-mono font-semibold text-right">
+                          {row.projected}
+                        </td>
+                        <td
                           className={cn(
-                            "h-6 w-6 flex items-center justify-center rounded-full transition-all",
-                            selectedItems.some((i) => i.id === row.id)
-                              ? "text-amber-400 bg-amber-500/20 opacity-100"
-                              : "opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-foreground hover:bg-muted/50"
+                            "px-4 py-2.5 text-xs font-mono font-medium text-right",
+                            row.positive ? "text-emerald-400" : "text-rose-400"
                           )}
                         >
-                          <Pin className={cn("h-3 w-3", selectedItems.some((i) => i.id === row.id) && "fill-amber-400")} />
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
+                          {row.change}
+                        </td>
+                        <td className="pr-2">
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              pinItem({
+                                type: "P&L Line Item",
+                                id: row.id,
+                                title: row.lineItem,
+                                current: row.current,
+                                projected: row.projected,
+                                aiDetail: row.aiDetail,
+                              });
+                            }}
+                            className={cn(
+                              "h-6 w-6 flex items-center justify-center rounded-full transition-all",
+                              isPinned
+                                ? "text-amber-400 bg-amber-500/20 opacity-100"
+                                : "opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-foreground hover:bg-white/[0.1]"
+                            )}
+                            title="Pin to Context"
+                          >
+                            <Pin className={cn("h-3 w-3", isPinned && "fill-amber-400")} />
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
@@ -232,11 +275,11 @@ export default function ReportPage({
                 className={cn(
                   "text-[10px]",
                   riskAssessment.overallLevel === "Low" &&
-                    "border-emerald-500/30 text-emerald-400",
+                  "border-emerald-500/30 text-emerald-400",
                   riskAssessment.overallLevel === "Medium" &&
-                    "border-amber-500/30 text-amber-400",
+                  "border-amber-500/30 text-amber-400",
                   riskAssessment.overallLevel === "High" &&
-                    "border-rose-500/30 text-rose-400"
+                  "border-rose-500/30 text-rose-400"
                 )}
               >
                 {riskAssessment.overallLevel} Overall Risk
@@ -247,9 +290,19 @@ export default function ReportPage({
                 <RiskCard
                   key={risk.id}
                   risk={risk}
-                  isSelected={selectedItems.some((i) => i.id === risk.id)}
+                  isPreviewed={analysisItems.some((i) => i.id === risk.id)}
+                  isPinned={pinnedItems.some((i) => i.id === risk.id)}
+                  onClick={() =>
+                    toggleAnalysisItem({
+                      type: "Risk Factor",
+                      id: risk.id,
+                      title: risk.title,
+                      aiDetail: risk.aiDetail,
+                      severity: risk.severity,
+                    })
+                  }
                   onPin={() =>
-                    addItem({
+                    pinItem({
                       type: "Risk Factor",
                       id: risk.id,
                       title: risk.title,
@@ -277,11 +330,18 @@ export default function ReportPage({
                     key={milestone.id}
                     milestone={milestone}
                     index={i}
-                    isSelected={selectedItems.some(
-                      (item) => item.id === milestone.id
-                    )}
+                    isPreviewed={analysisItems.some((i) => i.id === milestone.id)}
+                    isPinned={pinnedItems.some((item) => item.id === milestone.id)}
+                    onClick={() =>
+                      toggleAnalysisItem({
+                        type: "Milestone",
+                        id: milestone.id,
+                        title: `${milestone.month}: ${milestone.title}`,
+                        aiDetail: milestone.aiDetail,
+                      })
+                    }
                     onPin={() =>
-                      addItem({
+                      pinItem({
                         type: "Milestone",
                         id: milestone.id,
                         title: `${milestone.month}: ${milestone.title}`,
@@ -299,12 +359,18 @@ export default function ReportPage({
       {/* Right panel */}
       <div
         className={cn(
-          "shrink-0 transition-all duration-200",
-          selectedItems.length > 0 ? "w-80" : "w-0"
+          "shrink-0 transition-all duration-300",
+          isPanelOpen ? "w-[340px]" : "w-0"
         )}
       >
-        {selectedItems.length > 0 && (
-          <ReportDetailPanel items={selectedItems} onDismiss={dismissItem} />
+        {isPanelOpen && (
+          <ReportDetailPanel
+            analysisItems={analysisItems}
+            pinnedItems={pinnedItems}
+            onDismissAnalysis={dismissAnalysisItem}
+            onDismissPinned={unpinItem}
+            onPinAnalysis={pinItem}
+          />
         )}
       </div>
     </div>
@@ -315,34 +381,44 @@ export default function ReportPage({
 
 function MetricCard({
   metric,
-  isSelected,
+  isPreviewed,
+  isPinned,
+  onClick,
   onPin,
 }: {
   metric: ReportMetric;
-  isSelected: boolean;
+  isPreviewed: boolean;
+  isPinned: boolean;
+  onClick: () => void;
   onPin: () => void;
 }) {
   return (
     <div
+      onClick={onClick}
       className={cn(
-        "group relative glass-card rounded-xl p-3 transition-all hover:bg-white/[0.08]",
-        isSelected && "ring-1 ring-lime-400/50 bg-white/[0.08]"
+        "group relative glass-card rounded-xl p-3 transition-all cursor-pointer hover:bg-white/[0.08]",
+        isPreviewed && "bg-white/[0.08] ring-1 ring-white/20",
+        isPinned && "ring-1 ring-amber-500/50 bg-amber-500/5"
       )}
     >
       {/* Pin button */}
       <button
-        onClick={onPin}
+        onClick={(e) => {
+          e.stopPropagation();
+          onPin();
+        }}
         className={cn(
-          "absolute top-2 right-2 h-5 w-5 flex items-center justify-center rounded-full transition-all",
-          isSelected
-            ? "text-lime-400 bg-lime-400/20 opacity-100"
-            : "opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-foreground hover:bg-white/[0.05]"
+          "absolute top-2 right-2 h-6 w-6 flex items-center justify-center rounded-full transition-all border",
+          isPinned
+            ? "bg-amber-500/20 border-amber-500/30 text-amber-400 opacity-100"
+            : "opacity-0 group-hover:opacity-100 bg-white/[0.03] border-white/10 text-muted-foreground hover:bg-white/[0.1] hover:text-foreground"
         )}
+        title="Pin to Context"
       >
-        <Pin className={cn("h-2.5 w-2.5", isSelected && "fill-lime-400")} />
+        <Pin className={cn("h-3 w-3", isPinned && "fill-amber-400")} />
       </button>
 
-      <p className="text-[10px] text-muted-foreground mb-1">{metric.label}</p>
+      <p className="text-[10px] text-muted-foreground mb-1 pr-6">{metric.label}</p>
       <p className="text-lg font-bold font-mono">{metric.projected}</p>
       <div className="flex items-center gap-1 mt-1">
         {metric.positive ? (
@@ -367,34 +443,44 @@ function MetricCard({
 
 function RiskCard({
   risk,
-  isSelected,
+  isPreviewed,
+  isPinned,
+  onClick,
   onPin,
 }: {
   risk: RiskItem;
-  isSelected: boolean;
+  isPreviewed: boolean;
+  isPinned: boolean;
+  onClick: () => void;
   onPin: () => void;
 }) {
   return (
     <div
+      onClick={onClick}
       className={cn(
-        "group relative glass-card rounded-xl p-3 transition-all hover:bg-white/[0.08]",
-        isSelected && "ring-1 ring-lime-400/50 bg-white/[0.08]"
+        "group relative glass-card rounded-xl p-3 transition-all cursor-pointer hover:bg-white/[0.08]",
+        isPreviewed && "bg-white/[0.08] ring-1 ring-white/20",
+        isPinned && "ring-1 ring-amber-500/50 bg-amber-500/5"
       )}
     >
       {/* Pin button */}
       <button
-        onClick={onPin}
+        onClick={(e) => {
+          e.stopPropagation();
+          onPin();
+        }}
         className={cn(
-          "absolute top-2 right-2 h-5 w-5 flex items-center justify-center rounded-full transition-all",
-          isSelected
-            ? "text-lime-400 bg-lime-400/20 opacity-100"
-            : "opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-foreground hover:bg-white/[0.05]"
+          "absolute top-2 right-2 h-6 w-6 flex items-center justify-center rounded-full transition-all border",
+          isPinned
+            ? "bg-amber-500/20 border-amber-500/30 text-amber-400 opacity-100"
+            : "opacity-0 group-hover:opacity-100 bg-white/[0.03] border-white/10 text-muted-foreground hover:bg-white/[0.1] hover:text-foreground"
         )}
+        title="Pin to Context"
       >
-        <Pin className={cn("h-2.5 w-2.5", isSelected && "fill-lime-400")} />
+        <Pin className={cn("h-3 w-3", isPinned && "fill-amber-400")} />
       </button>
 
-      <div className="flex items-center justify-between mb-1.5 pr-6">
+      <div className="flex items-center justify-between mb-1.5 pr-8">
         <p className="text-xs font-semibold">{risk.title}</p>
         <Badge
           variant="outline"
@@ -409,7 +495,7 @@ function RiskCard({
           {risk.severity}
         </Badge>
       </div>
-      <p className="text-[11px] text-muted-foreground line-clamp-2">
+      <p className="text-[11px] text-muted-foreground line-clamp-2 pr-2">
         {highlightFinanceTerms(risk.description)}
       </p>
     </div>
@@ -421,12 +507,16 @@ function RiskCard({
 function MilestoneCard({
   milestone,
   index,
-  isSelected,
+  isPreviewed,
+  isPinned,
+  onClick,
   onPin,
 }: {
   milestone: Milestone;
   index: number;
-  isSelected: boolean;
+  isPreviewed: boolean;
+  isPinned: boolean;
+  onClick: () => void;
   onPin: () => void;
 }) {
   const colorIndex = index % CHART_COLORS.length;
@@ -437,7 +527,7 @@ function MilestoneCard({
       <div
         className={cn(
           "absolute -left-[21px] top-4 h-3 w-3 rounded-full border-2 z-10 transition-all",
-          isSelected
+          isPreviewed || isPinned
             ? "bg-primary border-primary shadow-[0_0_12px_rgba(255,255,255,0.2)]"
             : "bg-card border-border"
         )}
@@ -445,10 +535,12 @@ function MilestoneCard({
 
       {/* Card */}
       <div
+        onClick={onClick}
         className={cn(
-          "glass-card rounded-xl p-4 transition-all hover:bg-white/[0.08] border-l-[3px]",
+          "glass-card rounded-xl p-4 transition-all hover:bg-white/[0.08] border-l-[3px] cursor-pointer",
           CHART_COLORS[colorIndex],
-          isSelected && "ring-1 ring-primary/50 bg-muted/30"
+          isPreviewed && "bg-white/[0.08] ring-1 ring-white/20",
+          isPinned && "ring-1 ring-amber-500/50 bg-amber-500/5"
         )}
       >
         <div className="flex items-start justify-between mb-2">
@@ -457,15 +549,19 @@ function MilestoneCard({
           </Badge>
           {/* Pin button */}
           <button
-            onClick={onPin}
+            onClick={(e) => {
+              e.stopPropagation();
+              onPin();
+            }}
             className={cn(
-              "h-5 w-5 flex items-center justify-center rounded-full transition-all",
-              isSelected
-                ? "text-amber-400 bg-amber-500/20 opacity-100"
-                : "opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-foreground hover:bg-muted/50"
+              "h-6 w-6 flex items-center justify-center rounded-full transition-all border",
+              isPinned
+                ? "bg-amber-500/20 border-amber-500/30 text-amber-400 opacity-100"
+                : "opacity-0 group-hover:opacity-100 bg-white/[0.03] border-white/10 text-muted-foreground hover:bg-white/[0.1] hover:text-foreground"
             )}
+            title="Pin to Context"
           >
-            <Pin className={cn("h-2.5 w-2.5", isSelected && "fill-amber-400")} />
+            <Pin className={cn("h-3 w-3", isPinned && "fill-amber-400")} />
           </button>
         </div>
         <p className="text-sm font-semibold mb-1.5">{milestone.title}</p>

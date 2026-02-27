@@ -2,15 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import {
-  LayoutDashboard,
-  Database,
-  Play,
-  FileText,
-  Settings,
-  ChevronsLeft,
-  ChevronsRight,
-} from "lucide-react";
+import { Icons } from "@/components/ui/icons";
 import { cn } from "@/lib/utils";
 import { useUIStore } from "@/lib/store/ui-store";
 import {
@@ -21,10 +13,10 @@ import {
 } from "@/components/ui/tooltip";
 
 const navItems = [
-  { href: "/", label: "Dashboard", icon: LayoutDashboard },
-  { href: "/data", label: "Data", icon: Database },
-  { href: "/simulate", label: "Simulate", icon: Play },
-  { href: "/report", label: "Reports", icon: FileText },
+  { href: "/", label: "Dashboard", icon: Icons.Dashboard },
+  { href: "/data", label: "Data", icon: Icons.Data },
+  { href: "/simulate", label: "Simulate", icon: Icons.Simulate },
+  { href: "/report", label: "Reports", icon: Icons.Report },
 ];
 
 export function Sidebar() {
@@ -127,7 +119,7 @@ export function Sidebar() {
                   href="/settings"
                   className="flex items-center justify-center rounded-xl px-0 py-3 text-xs font-bold uppercase tracking-widest text-white/40 transition-all duration-300 hover:bg-white/5 hover:text-white/80"
                 >
-                  <Settings className="h-4 w-4" />
+                  <Icons.Settings className="h-4 w-4" />
                 </Link>
               </TooltipTrigger>
               <TooltipContent side="right" className="text-xs">
@@ -139,7 +131,7 @@ export function Sidebar() {
               href="/settings"
               className="flex items-center gap-4 rounded-xl px-4 py-3 text-xs font-bold uppercase tracking-widest text-white/40 transition-all duration-300 hover:bg-white/5 hover:text-white/80"
             >
-              <Settings className="h-4 w-4" />
+              <Icons.Settings className="h-4 w-4" />
               Settings
             </Link>
           )}
@@ -152,7 +144,7 @@ export function Sidebar() {
                   onClick={toggleSidebar}
                   className="flex w-full items-center justify-center rounded-xl px-0 py-3 mt-1.5 text-white/30 transition-all duration-300 hover:bg-white/5 hover:text-white/60"
                 >
-                  <ChevronsRight className="h-4 w-4" />
+                  <Icons.ChevronRightDouble className="h-4 w-4" />
                 </button>
               </TooltipTrigger>
               <TooltipContent side="right" className="text-xs">
@@ -164,7 +156,7 @@ export function Sidebar() {
               onClick={toggleSidebar}
               className="flex w-full items-center gap-4 rounded-xl px-4 py-3 mt-1.5 text-xs font-bold uppercase tracking-widest text-white/30 transition-all duration-300 hover:bg-white/5 hover:text-white/60"
             >
-              <ChevronsLeft className="h-4 w-4" />
+              <Icons.ChevronLeftDouble className="h-4 w-4" />
               Collapse
             </button>
           )}

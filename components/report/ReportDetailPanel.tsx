@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { X, Send } from "lucide-react";
+import { X, Send, Pin } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { highlightFinanceTerms } from "@/components/ui/finance-term";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -19,16 +19,28 @@ export interface ReportDetailItem {
 }
 
 interface ReportDetailPanelProps {
-  items: ReportDetailItem[];
-  onDismiss: (id: string) => void;
+  /** Items shown in the Analysis tab — additive, toggled by clicking report items */
+  analysisItems: ReportDetailItem[];
+  /** Items pinned into chat context via the thumbtack */
+  pinnedItems: ReportDetailItem[];
+  onDismissAnalysis: (id: string) => void;
+  onDismissPinned: (id: string) => void;
+  onPinAnalysis?: (item: ReportDetailItem) => void;
 }
 
-export function ReportDetailPanel({ items, onDismiss }: ReportDetailPanelProps) {
+export function ReportDetailPanel({
+  analysisItems,
+  pinnedItems,
+  onDismissAnalysis,
+  onDismissPinned,
+  onPinAnalysis,
+}: ReportDetailPanelProps) {
   const [chatMessages, setChatMessages] = useState<
     { role: "user" | "assistant"; content: string }[]
   >([]);
   const [chatInput, setChatInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [activeTab, setActiveTab] = useState("analysis");
   const chatEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -43,7 +55,7 @@ export function ReportDetailPanel({ items, onDismiss }: ReportDetailPanelProps) 
     setIsLoading(true);
 
     try {
-      const itemsContext = items
+      const itemsContext = pinnedItems
         .map((i) => `${i.type}: ${i.title} — ${i.aiDetail}`)
         .join("\n");
 
@@ -74,115 +86,153 @@ export function ReportDetailPanel({ items, onDismiss }: ReportDetailPanelProps) 
     <div className="flex h-full flex-col border-l border-white/[0.08] glass-card shadow-[-20px_0_40px_rgba(0,0,0,0.3)]">
       {/* Header */}
       <div className="flex items-center justify-between border-b border-white/[0.08] px-4 py-3">
-        <h3 className="text-sm font-semibold">
-          AI Analysis
-          {items.length > 0 && (
-            <span className="ml-2 text-[10px] text-muted-foreground font-normal">
-              {items.length} selected
-            </span>
-          )}
-        </h3>
+        <h3 className="text-sm font-semibold">AI Analysis</h3>
       </div>
 
-      <Tabs defaultValue="analysis" className="flex-1 flex flex-col">
+      <Tabs
+        value={activeTab}
+        onValueChange={setActiveTab}
+        className="flex-1 flex flex-col min-h-0"
+      >
         <TabsList className="mx-4 mt-3 grid w-auto grid-cols-2">
-          <TabsTrigger value="analysis" className="text-xs data-[state=active]:text-lime-400 data-[state=active]:shadow-none">
+          <TabsTrigger
+            value="analysis"
+            className="text-xs data-[state=active]:text-lime-400 data-[state=active]:shadow-none"
+          >
             Analysis
+            {analysisItems.length > 0 && (
+              <span className="ml-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-white/10 text-[9px] text-muted-foreground">
+                {analysisItems.length}
+              </span>
+            )}
           </TabsTrigger>
-          <TabsTrigger value="chat" className="text-xs data-[state=active]:text-lime-400 data-[state=active]:shadow-none">
+          <TabsTrigger
+            value="chat"
+            className="text-xs data-[state=active]:text-lime-400 data-[state=active]:shadow-none"
+          >
             Chat
-            {items.length > 0 && (
+            {pinnedItems.length > 0 && (
               <span className="ml-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-amber-500/20 text-[9px] text-amber-400">
-                {items.length}
+                {pinnedItems.length}
               </span>
             )}
           </TabsTrigger>
         </TabsList>
 
-        {/* Analysis Tab */}
-        <TabsContent value="analysis" className="flex-1 overflow-y-auto p-4 space-y-3">
-          {items.length === 0 ? (
-            <p className="text-xs text-muted-foreground py-8 text-center">
-              Click any metric, row, or milestone to see AI analysis
+        {/* Analysis Tab — additive list */}
+        <TabsContent value="analysis" className="flex-1 overflow-y-auto p-4 space-y-3 min-h-0">
+          {analysisItems.length === 0 ? (
+            <p className="text-xs text-muted-foreground py-8 text-center flex flex-col items-center gap-1">
+              <span>Click any metric, row, or milestone</span>
+              <span className="text-muted-foreground/50">Click again to remove it</span>
             </p>
           ) : (
-            items.map((item) => (
-              <div
-                key={item.id}
-                className="rounded-lg border border-white/[0.08] bg-white/[0.03] p-3 space-y-2"
-              >
-                <div className="flex items-start justify-between gap-2">
-                  <div>
-                    <p className="text-[10px] font-medium text-muted-foreground uppercase">
-                      {item.type}
-                    </p>
-                    <p className="text-xs font-semibold">{item.title}</p>
+            analysisItems.map((item) => {
+              const isPinned = pinnedItems.some((p) => p.id === item.id);
+              return (
+                <div
+                  key={item.id}
+                  className="rounded-lg border border-white/[0.08] bg-white/[0.03] p-4 space-y-3 relative group"
+                >
+                  <div className="flex items-start justify-between gap-2 pr-14">
+                    <div>
+                      <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider mb-1">
+                        {item.type}
+                      </p>
+                      <p className="text-sm font-semibold leading-tight">{item.title}</p>
+                    </div>
                   </div>
-                  <button
-                    onClick={() => onDismiss(item.id)}
-                    className="text-muted-foreground hover:text-foreground shrink-0"
-                  >
-                    <X className="h-3.5 w-3.5" />
-                  </button>
-                </div>
 
-                {item.current && item.projected && (
-                  <div className="flex items-center gap-2 text-xs">
-                    <span className="text-muted-foreground font-mono">{item.current}</span>
-                    <span className="text-muted-foreground">&rarr;</span>
-                    <span className="font-mono font-semibold">{item.projected}</span>
-                  </div>
-                )}
-
-                {item.severity && (
-                  <span
-                    className={cn(
-                      "inline-block rounded-full px-2 py-0.5 text-[10px] font-medium",
-                      item.severity === "Low" && "bg-emerald-500/10 text-emerald-400",
-                      item.severity === "Medium" && "bg-amber-500/10 text-amber-400",
-                      item.severity === "High" && "bg-rose-500/10 text-rose-400"
+                  {/* Action buttons: pin + dismiss */}
+                  <div className="absolute top-3 right-3 flex items-center gap-1">
+                    {onPinAnalysis && (
+                      <button
+                        onClick={() => onPinAnalysis(item)}
+                        className={cn(
+                          "h-7 w-7 flex items-center justify-center rounded-full transition-all border",
+                          isPinned
+                            ? "bg-amber-500/10 border-amber-500/30 text-amber-400"
+                            : "bg-white/[0.02] border-white/[0.1] text-muted-foreground hover:bg-white/[0.06] hover:text-foreground"
+                        )}
+                        title={isPinned ? "Pinned to chat context" : "Pin to chat context"}
+                      >
+                        <Pin className={cn("h-3.5 w-3.5", isPinned && "fill-amber-400")} />
+                      </button>
                     )}
-                  >
-                    {item.severity} Severity
-                  </span>
-                )}
+                    <button
+                      onClick={() => onDismissAnalysis(item.id)}
+                      className="h-7 w-7 flex items-center justify-center rounded-full bg-white/[0.02] border border-white/[0.1] text-muted-foreground hover:bg-white/[0.06] hover:text-foreground transition-all"
+                      title="Remove"
+                    >
+                      <X className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
 
-                <p className="text-[11px] text-muted-foreground leading-relaxed">
-                  {highlightFinanceTerms(item.aiDetail)}
-                </p>
-              </div>
-            ))
+                  {item.current && item.projected && (
+                    <div className="flex items-center gap-2 text-xs py-1">
+                      <span className="text-muted-foreground font-mono bg-black/20 px-1.5 py-0.5 rounded">
+                        {item.current}
+                      </span>
+                      <span className="text-muted-foreground/60">&rarr;</span>
+                      <span className="font-mono font-semibold text-lime-400 bg-lime-400/10 px-1.5 py-0.5 rounded">
+                        {item.projected}
+                      </span>
+                    </div>
+                  )}
+
+                  {item.severity && (
+                    <span
+                      className={cn(
+                        "inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium border",
+                        item.severity === "Low" && "bg-emerald-500/10 text-emerald-400 border-emerald-500/20",
+                        item.severity === "Medium" && "bg-amber-500/10 text-amber-400 border-amber-500/20",
+                        item.severity === "High" && "bg-rose-500/10 text-rose-400 border-rose-500/20"
+                      )}
+                    >
+                      {item.severity} Severity
+                    </span>
+                  )}
+
+                  <div className="pt-2 border-t border-white/[0.08]">
+                    <p className="text-xs text-muted-foreground leading-relaxed">
+                      {highlightFinanceTerms(item.aiDetail)}
+                    </p>
+                  </div>
+                </div>
+              );
+            })
           )}
         </TabsContent>
 
         {/* Chat Tab */}
-        <TabsContent value="chat" className="flex-1 flex flex-col px-4 pb-4">
+        <TabsContent value="chat" className="flex-1 flex flex-col px-4 pb-4 min-h-0">
           {/* Pinned item chips */}
-          {items.length > 0 && (
-            <div className="flex flex-wrap gap-1.5 mb-3">
-              {items.map((item) => (
+          {pinnedItems.length > 0 && (
+            <div className="flex flex-wrap gap-1.5 mb-3 shrink-0">
+              {pinnedItems.map((item) => (
                 <div
                   key={item.id}
-                  className="flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium border border-amber-500/30 bg-amber-500/10"
+                  className="flex items-center gap-1 rounded-full px-2 py-[3px] text-[10px] font-medium border border-amber-500/30 bg-amber-500/10"
                 >
-                  <span className="text-amber-400 truncate max-w-[100px]">{item.title}</span>
+                  <Pin className="h-2.5 w-2.5 text-amber-400 fill-amber-400" />
+                  <span className="text-amber-400 truncate max-w-[120px]">{item.title}</span>
                   <button
-                    onClick={() => onDismiss(item.id)}
-                    className="ml-0.5 text-muted-foreground hover:text-foreground"
+                    onClick={() => onDismissPinned(item.id)}
+                    className="ml-0.5 text-amber-400/60 hover:text-amber-400 transition-colors"
                   >
-                    <X className="h-2.5 w-2.5" />
+                    <X className="h-3 w-3" />
                   </button>
                 </div>
               ))}
             </div>
           )}
 
-          <div className="flex-1 overflow-y-auto space-y-3 mb-3">
+          <div className="flex-1 overflow-y-auto space-y-3 mb-3 pr-1">
             {chatMessages.length === 0 && !isLoading && (
               <p className="text-xs text-muted-foreground py-4 text-center">
-                {items.length > 0
-                  ? `${items.length} item${items.length > 1 ? "s" : ""} pinned as context. Ask a question...`
-                  : "Pin report items and ask questions..."}
+                {pinnedItems.length > 0
+                  ? `${pinnedItems.length} item${pinnedItems.length > 1 ? "s" : ""} in context. Ask a question...`
+                  : "Pin report items to add them to context..."}
               </p>
             )}
             {chatMessages.map((msg, i) => (
@@ -194,13 +244,16 @@ export function ReportDetailPanel({ items, onDismiss }: ReportDetailPanelProps) 
                 )}
               >
                 {msg.role === "user" ? (
-                  <div className="rounded-xl bg-lime-400/10 text-lime-400 px-3 py-2 max-w-[85%]">
+                  <div className="rounded-xl bg-lime-400/10 text-lime-400 px-3 py-2 max-w-[85%] border border-lime-400/20">
                     {msg.content}
                   </div>
                 ) : (
-                  <div className="rounded-xl border border-white/[0.08] bg-forest-800 backdrop-blur-sm px-3.5 py-2.5 space-y-1">
-                    <span className="text-[9px] font-medium text-muted-foreground uppercase tracking-wider">OptX</span>
-                    <p className="text-xs leading-relaxed text-foreground">
+                  <div className="rounded-xl border border-white/[0.08] bg-white/[0.03] backdrop-blur-sm px-3.5 py-2.5 space-y-1">
+                    <span className="text-[9px] font-medium text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
+                      <div className="h-1.5 w-1.5 rounded-full bg-lime-400" />
+                      OptX
+                    </span>
+                    <p className="text-xs leading-relaxed text-foreground/90">
                       {highlightFinanceTerms(msg.content)}
                     </p>
                   </div>
@@ -208,23 +261,32 @@ export function ReportDetailPanel({ items, onDismiss }: ReportDetailPanelProps) 
               </div>
             ))}
             {isLoading && (
-              <div className="rounded-xl border border-white/[0.08] bg-forest-800 px-4 py-3 space-y-2">
-                <div className="h-1.5 w-3/4 rounded-full bg-white/15 animate-pulse" />
-                <div className="h-1.5 w-1/2 rounded-full bg-white/10 animate-pulse [animation-delay:150ms]" />
+              <div className="rounded-xl border border-white/[0.08] bg-white/[0.03] px-4 py-3 space-y-2">
+                <div className="h-1.5 w-3/4 rounded-full bg-white/10 animate-pulse" />
+                <div className="h-1.5 w-1/2 rounded-full bg-white/5 animate-pulse [animation-delay:150ms]" />
               </div>
             )}
             <div ref={chatEndRef} />
           </div>
 
-          <div className="flex gap-2">
+          <div className="flex gap-2 shrink-0 pt-2 border-t border-white/[0.05]">
             <Input
               value={chatInput}
               onChange={(e) => setChatInput(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && handleSendChat()}
-              placeholder="Ask about this report..."
-              className="text-xs h-8"
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && !e.shiftKey) {
+                  e.preventDefault();
+                  handleSendChat();
+                }
+              }}
+              placeholder="Ask about context..."
+              className="text-xs h-9 bg-black/20 border-white/[0.1] focus-visible:border-lime-400/50"
             />
-            <Button size="sm" className="h-8 w-8 p-0" onClick={handleSendChat}>
+            <Button
+              size="sm"
+              className="h-9 w-9 p-0 bg-white/10 text-white hover:bg-white/20 hover:text-white"
+              onClick={handleSendChat}
+            >
               <Send className="h-3.5 w-3.5" />
             </Button>
           </div>
