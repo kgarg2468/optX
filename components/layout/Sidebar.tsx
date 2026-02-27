@@ -17,7 +17,6 @@ const navItems = [
   { href: "/data", label: "Data", icon: Icons.Data },
   { href: "/simulate", label: "Simulate", icon: Icons.Simulate },
   { href: "/report", label: "Reports", icon: Icons.Report },
-  { href: "/how-it-works", label: "Math Info", icon: Icons.Info },
 ];
 
 export function Sidebar() {
@@ -134,6 +133,31 @@ export function Sidebar() {
             >
               <Icons.Settings className="h-4 w-4" />
               Settings
+            </Link>
+          )}
+
+          {/* Info link */}
+          {collapsed ? (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Link
+                  href="/how-it-works"
+                  className="flex items-center justify-center rounded-xl px-0 py-3 text-xs font-bold uppercase tracking-widest text-white/40 transition-all duration-300 hover:bg-white/5 hover:text-white/80"
+                >
+                  <Icons.Info className="h-4 w-4" />
+                </Link>
+              </TooltipTrigger>
+              <TooltipContent side="right" className="text-xs">
+                Info
+              </TooltipContent>
+            </Tooltip>
+          ) : (
+            <Link
+              href="/how-it-works"
+              className="flex items-center gap-4 rounded-xl px-4 py-3 text-xs font-bold uppercase tracking-widest text-white/40 transition-all duration-300 hover:bg-white/5 hover:text-white/80"
+            >
+              <Icons.Info className="h-4 w-4" />
+              Info
             </Link>
           )}
 
