@@ -16,8 +16,8 @@ export function NodePalette({ onDragStart }: NodePaletteProps) {
     };
 
   return (
-    <div className="flex h-full w-56 flex-col border-r border-border bg-card">
-      <div className="border-b border-border px-4 py-3">
+    <div className="flex h-full w-56 flex-col glass-card rounded-none border-r border-white/[0.08]">
+      <div className="border-b border-white/[0.08] px-4 py-3">
         <h3 className="text-sm font-medium">Nodes</h3>
         <p className="text-xs text-muted-foreground mt-0.5">
           Drag onto canvas
@@ -29,7 +29,7 @@ export function NodePalette({ onDragStart }: NodePaletteProps) {
             key={type}
             draggable
             onDragStart={handleDragStart(type)}
-            className={`flex items-center gap-3 rounded-lg border-2 px-3 py-2.5 cursor-grab active:cursor-grabbing transition-colors hover:shadow-sm ${bgClass} ${borderClass}`}
+            className={`flex items-center gap-3 rounded-lg border px-3 py-2.5 cursor-grab active:cursor-grabbing transition-all hover:bg-white/[0.05] ${bgClass} ${borderClass}`}
           >
             <div className={`flex h-7 w-7 shrink-0 items-center justify-center rounded ${bgClass}`}>
               <Icon className={`h-3.5 w-3.5 ${textClass}`} />

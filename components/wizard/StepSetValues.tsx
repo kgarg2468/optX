@@ -33,7 +33,7 @@ export function StepSetValues({ variables, onUpdate }: StepSetValuesProps) {
         {variables.map((v) => (
           <div
             key={v.variableId}
-            className="rounded-lg border border-border p-3 space-y-2"
+            className="rounded-lg border border-white/[0.08] p-3 space-y-2"
           >
             <div className="flex items-center justify-between">
               <p className="text-sm font-medium">{v.name}</p>
@@ -75,7 +75,7 @@ export function StepSetValues({ variables, onUpdate }: StepSetValuesProps) {
                 <span
                   className={
                     v.modifiedValue >= v.baseValue
-                      ? "text-chart-2"
+                      ? "text-emerald-400"
                       : "text-destructive"
                   }
                 >

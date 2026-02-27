@@ -32,7 +32,7 @@ export function DeleteProjectConfirm({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md">
+      <DialogContent className="max-w-md glass-card border-rose-500/20">
         {step === 1 ? (
           <>
             <DialogHeader>

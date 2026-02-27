@@ -17,8 +17,8 @@ interface ConfigPanelProps {
 export function ConfigPanel({ node, onUpdate, onDelete }: ConfigPanelProps) {
   if (!node) {
     return (
-      <div className="flex h-full w-80 flex-col border-l border-border bg-card">
-        <div className="flex items-center gap-2 border-b border-border px-4 py-3">
+      <div className="flex h-full w-80 flex-col glass-card rounded-none border-l border-white/[0.08]">
+        <div className="flex items-center gap-2 border-b border-white/[0.08] px-4 py-3">
           <Settings2 className="h-4 w-4 text-muted-foreground" />
           <h3 className="text-sm font-medium">Properties</h3>
         </div>
@@ -35,8 +35,8 @@ export function ConfigPanel({ node, onUpdate, onDelete }: ConfigPanelProps) {
   const Icon = config.icon;
 
   return (
-    <div className="flex h-full w-80 flex-col border-l border-border bg-card">
-      <div className="flex items-center justify-between border-b border-border px-4 py-3">
+    <div className="flex h-full w-80 flex-col glass-card rounded-none border-l border-white/[0.08]">
+      <div className="flex items-center justify-between border-b border-white/[0.08] px-4 py-3">
         <div className="flex items-center gap-2">
           <Icon className={`h-4 w-4 ${config.textClass}`} />
           <h3 className="text-sm font-medium">{config.label} Node</h3>

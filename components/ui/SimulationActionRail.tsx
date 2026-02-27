@@ -28,7 +28,7 @@ export function SimulationActionRail({
             transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1], delay: 0.2 }}
             className={cn(
                 "absolute right-4 top-1/2 -translate-y-1/2 flex flex-col gap-6 z-50",
-                "bg-black/20 backdrop-blur-xl border border-white/10 rounded-full p-3 py-6",
+                "glass-card rounded-full p-3 py-6",
                 className
             )}
         >
@@ -40,7 +40,7 @@ export function SimulationActionRail({
             />
 
             <RailButton
-                icon={<Zap className="w-5 h-5 text-orange-400" />}
+                icon={<Zap className="w-5 h-5 text-emerald-400" />}
                 label="Inject Event"
                 onClick={onInjectEvent}
             />
@@ -83,8 +83,8 @@ function RailButton({
                 className={cn(
                     "w-12 h-12 flex items-center justify-center rounded-full transition-colors",
                     primary
-                        ? "bg-foreground text-background hover:bg-white"
-                        : "bg-transparent text-foreground/80 hover:bg-white/10"
+                        ? "bg-lime-400 text-forest-950 hover:bg-lime-500"
+                        : "bg-transparent text-foreground/80 hover:bg-white/[0.1]"
                 )}
             >
                 {icon}

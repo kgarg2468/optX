@@ -23,7 +23,7 @@ export function ProjectSwitchGuard({
 }: ProjectSwitchGuardProps) {
   return (
     <Dialog open={open} onOpenChange={(nextOpen) => !nextOpen && onStay()}>
-      <DialogContent className="max-w-md">
+      <DialogContent className="max-w-md glass-card">
         <DialogHeader>
           <DialogTitle>Unsaved changes</DialogTitle>
           <DialogDescription>

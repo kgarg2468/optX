@@ -205,18 +205,18 @@ function DataBoxCard({
 
   return (
     <Card
-      className={`cursor-pointer transition-all hover:bg-accent/50 ${
-        isUploaded ? "border-chart-2/50 bg-chart-2/5" : ""
+      className={`cursor-pointer transition-all glass-card hover:bg-white/[0.05] ${
+        isUploaded ? "border-emerald-400/30 bg-emerald-400/5" : ""
       }`}
       onClick={onClick}
     >
       <CardContent className="p-4">
         <div className="flex items-start justify-between mb-2">
           <div
-            className={`flex h-8 w-8 items-center justify-center rounded-lg bg-accent ${tierColors[config.tier]}`}
+            className={`flex h-8 w-8 items-center justify-center rounded-lg bg-white/[0.05] ${tierColors[config.tier]}`}
           >
             {isUploaded ? (
-              <Check className="h-4 w-4 text-chart-2" />
+              <Check className="h-4 w-4 text-emerald-400" />
             ) : (
               <Icon className="h-4 w-4" />
             )}

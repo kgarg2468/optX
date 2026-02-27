@@ -186,9 +186,10 @@ export function ScenarioWizard({
           )}
         </div>
 
-        <div className="flex items-center justify-between border-t border-border px-6 py-4">
+        <div className="flex items-center justify-between border-t border-white/[0.08] px-6 py-4">
           <Button
             variant="ghost"
+            className="hover:bg-white/[0.05]"
             onClick={() => setStep((s) => Math.max(0, s - 1))}
             disabled={step === 0}
           >
@@ -197,13 +198,18 @@ export function ScenarioWizard({
           <div className="flex gap-2">
             {step < 3 ? (
               <Button
+                className="bg-lime-400 text-forest-950 hover:bg-lime-500"
                 onClick={() => setStep((s) => s + 1)}
                 disabled={!canNext()}
               >
                 Next
               </Button>
             ) : (
-              <Button onClick={handleSave} disabled={isSaving}>
+              <Button
+                className="bg-lime-400 text-forest-950 hover:bg-lime-500"
+                onClick={handleSave}
+                disabled={isSaving}
+              >
                 {isSaving ? "Saving..." : "Save Scenario"}
               </Button>
             )}

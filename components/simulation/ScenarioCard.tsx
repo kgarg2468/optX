@@ -42,10 +42,10 @@ export function ScenarioCard({ scenario, onExplore }: ScenarioCardProps) {
   return (
     <Card
       className={cn(
-        "group relative overflow-hidden transition-all duration-300 hover:shadow-xl",
+        "group relative overflow-hidden rounded-xl glass-card card-hover transition-all duration-300 hover:shadow-xl",
         recommended
           ? "border-emerald-500/40 shadow-emerald-500/10 shadow-lg"
-          : "border-border/50 hover:border-border"
+          : "border-white/[0.08] hover:border-white/[0.12]"
       )}
     >
       {/* Recommended glow */}

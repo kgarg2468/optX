@@ -23,16 +23,16 @@ function FinanceTerm({ term }: { term: string }) {
       <Tooltip>
         <TooltipTrigger asChild>
           <span
-            className="text-keyword-purple font-medium underline decoration-dotted decoration-keyword-purple/50 underline-offset-2 cursor-help"
+            className="text-lime-400 font-medium underline decoration-dotted decoration-lime-400/50 underline-offset-2 cursor-help"
           >
             {term}
           </span>
         </TooltipTrigger>
         <TooltipContent
           side="top"
-          className="z-[200] max-w-xs rounded-xl px-4 py-3 bg-[oklch(0.08_0.005_285/0.97)] backdrop-blur-2xl border border-white/15 shadow-[0_8px_32px_rgba(0,0,0,0.8),inset_0_1px_0_rgba(255,255,255,0.08)]"
+          className="z-[200] max-w-xs rounded-xl px-4 py-3 glass-heavy"
         >
-          <p className="text-keyword-purple font-medium text-xs mb-1">{key ?? term}</p>
+          <p className="text-lime-400 font-medium text-xs mb-1">{key ?? term}</p>
           <p className="text-xs text-white/80">{definition}</p>
         </TooltipContent>
       </Tooltip>

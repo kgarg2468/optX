@@ -16,7 +16,7 @@ export function ChatMessageBubble({ message }: ChatMessageBubbleProps) {
       <div
         className={cn(
           "flex h-7 w-7 shrink-0 items-center justify-center rounded-full",
-          isUser ? "bg-white/10" : "bg-white/[0.03] border border-white/8"
+          isUser ? "bg-lime-400/10" : "bg-forest-800 border border-white/[0.08]"
         )}
       >
         {isUser ? (
@@ -29,8 +29,8 @@ export function ChatMessageBubble({ message }: ChatMessageBubbleProps) {
         className={cn(
           "max-w-[85%] rounded-xl px-3.5 py-2.5 text-sm",
           isUser
-            ? "bg-white/10 text-foreground"
-            : "border border-white/8 bg-white/[0.03] backdrop-blur-sm text-foreground"
+            ? "bg-lime-400/10 text-lime-400"
+            : "border border-white/[0.08] bg-forest-800 backdrop-blur-sm text-foreground"
         )}
       >
         {!isUser && (

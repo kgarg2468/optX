@@ -71,9 +71,9 @@ export function ReportDetailPanel({ items, onDismiss }: ReportDetailPanelProps) 
   };
 
   return (
-    <div className="flex h-full flex-col border-l border-white/8 bg-black/40 backdrop-blur-xl shadow-[-20px_0_40px_rgba(0,0,0,0.3)]">
+    <div className="flex h-full flex-col border-l border-white/[0.08] glass-card shadow-[-20px_0_40px_rgba(0,0,0,0.3)]">
       {/* Header */}
-      <div className="flex items-center justify-between border-b border-border/50 px-4 py-3">
+      <div className="flex items-center justify-between border-b border-white/[0.08] px-4 py-3">
         <h3 className="text-sm font-semibold">
           AI Analysis
           {items.length > 0 && (
@@ -86,10 +86,10 @@ export function ReportDetailPanel({ items, onDismiss }: ReportDetailPanelProps) 
 
       <Tabs defaultValue="analysis" className="flex-1 flex flex-col">
         <TabsList className="mx-4 mt-3 grid w-auto grid-cols-2">
-          <TabsTrigger value="analysis" className="text-xs">
+          <TabsTrigger value="analysis" className="text-xs data-[state=active]:text-lime-400 data-[state=active]:shadow-none">
             Analysis
           </TabsTrigger>
-          <TabsTrigger value="chat" className="text-xs">
+          <TabsTrigger value="chat" className="text-xs data-[state=active]:text-lime-400 data-[state=active]:shadow-none">
             Chat
             {items.length > 0 && (
               <span className="ml-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-amber-500/20 text-[9px] text-amber-400">
@@ -109,7 +109,7 @@ export function ReportDetailPanel({ items, onDismiss }: ReportDetailPanelProps) 
             items.map((item) => (
               <div
                 key={item.id}
-                className="rounded-lg border border-border/50 bg-muted/20 p-3 space-y-2"
+                className="rounded-lg border border-white/[0.08] bg-white/[0.03] p-3 space-y-2"
               >
                 <div className="flex items-start justify-between gap-2">
                   <div>
@@ -194,11 +194,11 @@ export function ReportDetailPanel({ items, onDismiss }: ReportDetailPanelProps) 
                 )}
               >
                 {msg.role === "user" ? (
-                  <div className="rounded-xl bg-white/10 px-3 py-2 max-w-[85%]">
+                  <div className="rounded-xl bg-lime-400/10 text-lime-400 px-3 py-2 max-w-[85%]">
                     {msg.content}
                   </div>
                 ) : (
-                  <div className="rounded-xl border border-white/8 bg-white/[0.03] backdrop-blur-sm px-3.5 py-2.5 space-y-1">
+                  <div className="rounded-xl border border-white/[0.08] bg-forest-800 backdrop-blur-sm px-3.5 py-2.5 space-y-1">
                     <span className="text-[9px] font-medium text-muted-foreground uppercase tracking-wider">OptX</span>
                     <p className="text-xs leading-relaxed text-foreground">
                       {highlightFinanceTerms(msg.content)}
@@ -208,7 +208,7 @@ export function ReportDetailPanel({ items, onDismiss }: ReportDetailPanelProps) 
               </div>
             ))}
             {isLoading && (
-              <div className="rounded-xl border border-white/8 bg-white/[0.03] px-4 py-3 space-y-2">
+              <div className="rounded-xl border border-white/[0.08] bg-forest-800 px-4 py-3 space-y-2">
                 <div className="h-1.5 w-3/4 rounded-full bg-white/15 animate-pulse" />
                 <div className="h-1.5 w-1/2 rounded-full bg-white/10 animate-pulse [animation-delay:150ms]" />
               </div>

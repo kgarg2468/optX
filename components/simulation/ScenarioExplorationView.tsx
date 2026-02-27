@@ -173,7 +173,7 @@ export function ScenarioExplorationView({
       {/* Main canvas area */}
       <div className="flex-1 flex flex-col">
         {/* Top bar */}
-        <div className="flex items-center justify-between border-b border-border/50 bg-card/50 backdrop-blur-sm px-4 py-2.5">
+        <div className="flex items-center justify-between border-b border-white/[0.08] bg-white/[0.02] backdrop-blur-sm px-4 py-2.5">
           <div className="flex items-center gap-3">
             <Button
               variant="ghost"
@@ -184,8 +184,8 @@ export function ScenarioExplorationView({
               <ArrowLeft className="h-3.5 w-3.5" />
               Back
             </Button>
-            <div className="h-4 w-px bg-border" />
-            <h2 className="text-sm font-semibold">{scenario.title}</h2>
+            <div className="h-4 w-px bg-white/[0.08]" />
+            <h2 className="text-sm font-semibold font-playfair">{scenario.title}</h2>
             <Badge
               variant={scenario.recommended ? "default" : "secondary"}
               className={cn(
@@ -237,7 +237,7 @@ export function ScenarioExplorationView({
           >
             <Background color="hsl(var(--muted-foreground))" gap={24} size={1} />
             <Controls
-              className="!bg-card/80 !border-border/50 !shadow-lg [&>button]:!bg-card [&>button]:!border-border/50 [&>button]:!text-muted-foreground [&>button:hover]:!bg-muted"
+              className="!bg-white/[0.05] !border-white/[0.08] !shadow-lg [&>button]:!bg-white/[0.03] [&>button]:!border-white/[0.08] [&>button]:!text-muted-foreground [&>button:hover]:!bg-white/[0.08]"
               showInteractive={false}
             />
           </ReactFlow>
@@ -249,7 +249,7 @@ export function ScenarioExplorationView({
         </div>
 
         {/* Bottom bar */}
-        <div className="flex items-center justify-between border-t border-border/50 bg-card/50 backdrop-blur-sm px-4 py-2.5">
+        <div className="flex items-center justify-between border-t border-white/[0.08] bg-white/[0.02] backdrop-blur-sm px-4 py-2.5">
           <p className="text-xs text-muted-foreground">
             {scenario.nodes.length} nodes &middot; {scenario.edges.length} connections &middot; {scenario.confidence}% confidence
           </p>

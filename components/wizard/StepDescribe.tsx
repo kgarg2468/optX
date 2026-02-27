@@ -99,9 +99,9 @@ export function StepDescribe({
         </div>
       </div>
 
-      <div className="rounded-lg border border-dashed border-border p-4 space-y-3">
+      <div className="rounded-lg border border-dashed border-white/[0.08] p-4 space-y-3">
         <div className="flex items-center gap-2">
-          <Sparkles className="h-4 w-4 text-chart-4" />
+          <Sparkles className="h-4 w-4 text-lime-400" />
           <Label className="text-sm font-medium">
             Describe with Natural Language
           </Label>

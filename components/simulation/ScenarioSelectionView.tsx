@@ -17,9 +17,9 @@ export function ScenarioSelectionView({ onExplore }: ScenarioSelectionViewProps)
     <div className="min-h-[calc(100vh-4rem)] px-6 py-10 max-w-5xl mx-auto">
       {/* Header */}
       <div className="mb-8 text-center">
-        <h1 className="text-2xl font-bold tracking-tight">{MOCK_BUSINESS_NAME}</h1>
+        <h1 className="text-2xl font-bold tracking-tight font-playfair">{MOCK_BUSINESS_NAME}</h1>
         <p className="text-sm text-muted-foreground mt-1">{MOCK_BUSINESS_TAGLINE}</p>
-        <div className="mt-4 inline-flex items-center gap-2 rounded-full border border-border/50 bg-muted/30 px-4 py-1.5">
+        <div className="mt-4 inline-flex items-center gap-2 rounded-full border border-white/[0.08] bg-white/[0.03] px-4 py-1.5">
           <Sparkles className="h-3.5 w-3.5 text-amber-400" />
           <span className="text-xs text-muted-foreground">
             {MOCK_SCENARIOS.length} scenarios generated

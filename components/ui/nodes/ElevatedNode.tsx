@@ -22,16 +22,16 @@ const ElevatedNodeComponent = ({
         <div
             className={cn(
                 "relative group min-w-[200px] px-6 py-5 rounded-3xl",
-                "bg-[#1A1A1A]/90 backdrop-blur-xl border-2 transition-all duration-300",
+                "glass-card border-2 transition-all duration-300",
                 selected
-                    ? "border-primary shadow-[0_0_30px_rgba(90,58,53,0.3)]"
+                    ? "border-emerald-400/50 shadow-[0_0_30px_rgba(16,185,129,0.2)]"
                     : "border-white/10 hover:border-white/20 shadow-xl"
             )}
         >
             <Handle
                 type="target"
                 position={Position.Top}
-                className="w-3 h-3 border-2 border-[#1A1A1A] bg-white/50"
+                className="w-3 h-3 border-2 border-forest-900 bg-white/50"
             />
 
             <div className="flex flex-col gap-1">
@@ -40,7 +40,7 @@ const ElevatedNodeComponent = ({
                         {data.label}
                     </span>
                     {data.status === "warning" && (
-                        <span className="w-2 h-2 rounded-full bg-orange-400 animate-pulse" />
+                        <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
                     )}
                     {data.status === "success" && (
                         <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
@@ -62,7 +62,7 @@ const ElevatedNodeComponent = ({
             <Handle
                 type="source"
                 position={Position.Bottom}
-                className="w-3 h-3 border-2 border-[#1A1A1A] bg-white/50"
+                className="w-3 h-3 border-2 border-forest-900 bg-white/50"
             />
         </div>
     );

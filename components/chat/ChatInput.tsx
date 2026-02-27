@@ -44,7 +44,7 @@ export function ChatInput({
   };
 
   return (
-    <div className="flex items-end gap-2 border-t border-border p-3">
+    <div className="flex items-end gap-2 border-t border-white/[0.08] p-3">
       <textarea
         ref={textareaRef}
         value={value}
@@ -54,7 +54,7 @@ export function ChatInput({
         placeholder={placeholder}
         disabled={disabled}
         rows={1}
-        className="flex-1 resize-none rounded-md border border-input bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:opacity-50"
+        className="flex-1 resize-none rounded-md border border-white/[0.08] bg-forest-800 px-3 py-2 text-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-lime-400/50 disabled:opacity-50"
       />
       <Button
         size="icon"

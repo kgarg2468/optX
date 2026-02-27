@@ -47,7 +47,7 @@ export function ProjectListView({
           <h2 className="text-2xl font-bold tracking-tight">{title}</h2>
           <p className="text-muted-foreground mt-1">{description}</p>
         </div>
-        <Button onClick={onCreate}>
+        <Button onClick={onCreate} className="bg-lime-400 text-forest-950 hover:bg-lime-300">
           <Plus className="mr-2 h-4 w-4" />
           {createLabel}
         </Button>
@@ -76,7 +76,7 @@ export function ProjectListView({
       ) : projects.length === 0 ? (
         <Card>
           <CardContent className="flex flex-col items-center justify-center py-16 text-center">
-            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-accent mb-3">
+            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-white/[0.05] mb-3">
               <FolderKanban className="h-5 w-5 text-muted-foreground" />
             </div>
             <h3 className="font-semibold mb-1">No Projects Yet</h3>
@@ -84,7 +84,7 @@ export function ProjectListView({
               Create your first project to add data, build scenarios, and run
               simulations.
             </p>
-            <Button onClick={onCreate}>
+            <Button onClick={onCreate} className="bg-lime-400 text-forest-950 hover:bg-lime-300">
               <Plus className="mr-2 h-4 w-4" />
               {createLabel}
             </Button>
@@ -95,10 +95,10 @@ export function ProjectListView({
           {projects.map((project) => (
             <Card
               key={project.id}
-              className="group cursor-pointer transition-all duration-300 hover:bg-accent/30 hover:shadow-[0_0_30px_rgba(255,255,255,0.03)] hover:border-white/10 relative overflow-hidden"
+              className="group cursor-pointer transition-all duration-300 glass-card hover:bg-white/[0.05] hover:shadow-[0_0_30px_rgba(255,255,255,0.03)] hover:border-white/10 relative overflow-hidden"
               onClick={() => onSelect(project.id)}
             >
-              <div className="absolute inset-0 bg-gradient-to-tr from-accent/0 via-accent/0 to-white/5 opacity-0 group-hover:opacity-100 transition-all duration-500" />
+              <div className="absolute inset-0 bg-gradient-to-tr from-transparent via-transparent to-white/5 opacity-0 group-hover:opacity-100 transition-all duration-500" />
               <CardHeader className="relative z-10">
                 <CardTitle className="text-base">{project.name}</CardTitle>
                 <CardDescription>

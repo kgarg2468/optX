@@ -22,11 +22,11 @@ import {
 } from "@/components/report/ReportDetailPanel";
 
 const CHART_COLORS = [
-  "border-l-[hsl(var(--chart-1))]",
-  "border-l-[hsl(var(--chart-2))]",
-  "border-l-[hsl(var(--chart-3))]",
-  "border-l-[hsl(var(--chart-4))]",
-  "border-l-[hsl(var(--chart-5))]",
+  "border-l-emerald-400",
+  "border-l-lime-400",
+  "border-l-amber-400",
+  "border-l-sky-400",
+  "border-l-rose-400",
 ];
 
 export default function ReportPage({
@@ -84,7 +84,7 @@ export default function ReportPage({
 
             <div className="flex items-start justify-between">
               <div className="space-y-1">
-                <h1 className="text-2xl font-bold tracking-tight">
+                <h1 className="font-playfair text-3xl font-medium tracking-tight">
                   {header.title}
                 </h1>
                 <p className="text-sm text-muted-foreground">
@@ -325,9 +325,8 @@ function MetricCard({
   return (
     <div
       className={cn(
-        "group relative rounded-lg border border-border/50 bg-card/50 p-3 transition-all hover:bg-muted/20 hover:border-border",
-        "shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]",
-        isSelected && "ring-1 ring-primary/50 bg-muted/30"
+        "group relative glass-card rounded-xl p-3 transition-all hover:bg-white/[0.08]",
+        isSelected && "ring-1 ring-lime-400/50 bg-white/[0.08]"
       )}
     >
       {/* Pin button */}
@@ -336,11 +335,11 @@ function MetricCard({
         className={cn(
           "absolute top-2 right-2 h-5 w-5 flex items-center justify-center rounded-full transition-all",
           isSelected
-            ? "text-amber-400 bg-amber-500/20 opacity-100"
-            : "opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-foreground hover:bg-muted/50"
+            ? "text-lime-400 bg-lime-400/20 opacity-100"
+            : "opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-foreground hover:bg-white/[0.05]"
         )}
       >
-        <Pin className={cn("h-2.5 w-2.5", isSelected && "fill-amber-400")} />
+        <Pin className={cn("h-2.5 w-2.5", isSelected && "fill-lime-400")} />
       </button>
 
       <p className="text-[10px] text-muted-foreground mb-1">{metric.label}</p>
@@ -378,9 +377,8 @@ function RiskCard({
   return (
     <div
       className={cn(
-        "group relative rounded-lg border border-border/50 bg-card/50 p-3 transition-all hover:bg-muted/20 hover:border-border",
-        "shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]",
-        isSelected && "ring-1 ring-primary/50 bg-muted/30"
+        "group relative glass-card rounded-xl p-3 transition-all hover:bg-white/[0.08]",
+        isSelected && "ring-1 ring-lime-400/50 bg-white/[0.08]"
       )}
     >
       {/* Pin button */}
@@ -389,11 +387,11 @@ function RiskCard({
         className={cn(
           "absolute top-2 right-2 h-5 w-5 flex items-center justify-center rounded-full transition-all",
           isSelected
-            ? "text-amber-400 bg-amber-500/20 opacity-100"
-            : "opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-foreground hover:bg-muted/50"
+            ? "text-lime-400 bg-lime-400/20 opacity-100"
+            : "opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-foreground hover:bg-white/[0.05]"
         )}
       >
-        <Pin className={cn("h-2.5 w-2.5", isSelected && "fill-amber-400")} />
+        <Pin className={cn("h-2.5 w-2.5", isSelected && "fill-lime-400")} />
       </button>
 
       <div className="flex items-center justify-between mb-1.5 pr-6">
@@ -448,8 +446,7 @@ function MilestoneCard({
       {/* Card */}
       <div
         className={cn(
-          "rounded-lg border border-border/50 bg-card/50 p-4 transition-all hover:bg-muted/20 hover:border-border border-l-[3px]",
-          "shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]",
+          "glass-card rounded-xl p-4 transition-all hover:bg-white/[0.08] border-l-[3px]",
           CHART_COLORS[colorIndex],
           isSelected && "ring-1 ring-primary/50 bg-muted/30"
         )}

@@ -87,8 +87,8 @@ export function ChatPanel({ scenarioId }: ChatPanelProps) {
   );
 
   return (
-    <div className="flex h-full flex-col">
-      <div className="flex items-center gap-2 border-b border-border px-4 py-3">
+    <div className="flex h-full flex-col glass-card rounded-2xl">
+      <div className="flex items-center gap-2 border-b border-white/[0.08] px-4 py-3">
         <MessageSquare className="h-4 w-4 text-muted-foreground" />
         <h3 className="text-sm font-medium">AI Chat</h3>
       </div>

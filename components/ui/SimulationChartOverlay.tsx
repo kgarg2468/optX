@@ -48,7 +48,7 @@ export function SimulationChartOverlay({
                     )}
                 >
                     {/* Main Chart Area */}
-                    <div className="flex-1 bg-black/40 backdrop-blur-2xl border border-white/5 rounded-3xl p-6 pointer-events-auto h-48 overflow-hidden relative">
+                    <div className="flex-1 glass-card rounded-3xl p-6 pointer-events-auto h-48 overflow-hidden relative">
                         <h3 className="text-sm font-medium tracking-widest uppercase text-muted-foreground mb-4">
                             Real-Time Revenue vs Stress
                         </h3>
@@ -58,12 +58,12 @@ export function SimulationChartOverlay({
                                 <AreaChart data={data} margin={{ top: 0, right: 0, left: -20, bottom: 0 }}>
                                     <defs>
                                         <linearGradient id="colorRev" x1="0" y1="0" x2="0" y2="1">
-                                            <stop offset="5%" stopColor="#F5F5F5" stopOpacity={0.3} />
-                                            <stop offset="95%" stopColor="#F5F5F5" stopOpacity={0} />
+                                            <stop offset="5%" stopColor="#34D399" stopOpacity={0.3} />
+                                            <stop offset="95%" stopColor="#34D399" stopOpacity={0} />
                                         </linearGradient>
                                         <linearGradient id="colorStress" x1="0" y1="0" x2="0" y2="1">
-                                            <stop offset="5%" stopColor="#5A3A35" stopOpacity={0.5} />
-                                            <stop offset="95%" stopColor="#5A3A35" stopOpacity={0} />
+                                            <stop offset="5%" stopColor="#FB7185" stopOpacity={0.5} />
+                                            <stop offset="95%" stopColor="#FB7185" stopOpacity={0} />
                                         </linearGradient>
                                     </defs>
 
@@ -83,15 +83,15 @@ export function SimulationChartOverlay({
                                     <Area
                                         type="monotone"
                                         dataKey="stress"
-                                        stroke="#5A3A35"
+                                        stroke="#FB7185"
                                         fillOpacity={1}
                                         fill="url(#colorStress)"
-                                        isAnimationActive={false} // Disable recharts animation for performance on fast ticks
+                                        isAnimationActive={false}
                                     />
                                     <Area
                                         type="monotone"
                                         dataKey="revenue"
-                                        stroke="#F5F5F5"
+                                        stroke="#34D399"
                                         strokeWidth={2}
                                         fillOpacity={1}
                                         fill="url(#colorRev)"
@@ -103,7 +103,7 @@ export function SimulationChartOverlay({
                     </div>
 
                     {/* Activity Log Feed */}
-                    <div className="w-full md:w-80 bg-black/40 backdrop-blur-2xl border border-white/5 rounded-3xl p-6 pointer-events-auto flex flex-col justify-end h-48">
+                    <div className="w-full md:w-80 glass-card rounded-3xl p-6 pointer-events-auto flex flex-col justify-end h-48">
                         <h3 className="text-sm font-medium tracking-widest uppercase text-muted-foreground mb-4 absolute top-6">
                             Agent Activity
                         </h3>

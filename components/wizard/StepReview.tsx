@@ -19,7 +19,7 @@ export function StepReview({ name, description, variables }: StepReviewProps) {
         </p>
       </div>
 
-      <div className="rounded-lg border border-border p-4 space-y-3">
+      <div className="rounded-lg border border-white/[0.08] p-4 space-y-3">
         <div>
           <p className="text-xs text-muted-foreground">Name</p>
           <p className="text-sm font-medium">{name || "Untitled Scenario"}</p>

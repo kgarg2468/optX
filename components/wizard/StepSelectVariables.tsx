@@ -49,7 +49,7 @@ export function StepSelectVariables({
           {variables.map((v) => (
             <div
               key={v.variableId}
-              className="flex items-center justify-between rounded-lg border border-border px-3 py-2"
+              className="flex items-center justify-between rounded-lg border border-white/[0.08] px-3 py-2"
             >
               <div>
                 <p className="text-sm font-medium">{v.name}</p>
@@ -67,7 +67,7 @@ export function StepSelectVariables({
           ))}
         </div>
       ) : (
-        <div className="flex flex-col items-center justify-center py-6 text-center rounded-lg border border-dashed border-border">
+        <div className="flex flex-col items-center justify-center py-6 text-center rounded-lg border border-dashed border-white/[0.08]">
           <p className="text-sm text-muted-foreground">
             No variables selected. Add variables manually or use AI parsing in
             Step 1.

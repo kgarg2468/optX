@@ -176,7 +176,10 @@ function DataPageContent() {
   }
 
   return (
-    <div className="space-y-12 max-w-6xl mx-auto px-2 py-8">
+    <div className="relative space-y-12 max-w-6xl mx-auto px-2 py-8">
+      {/* Ambient blobs */}
+      <div className="ambient-blob blob-emerald absolute -top-20 right-20" />
+      <div className="ambient-blob blob-lime absolute top-[600px] -left-40" />
       <ProjectHeader
         project={selectedProject}
         projects={projects}
@@ -210,7 +213,7 @@ function DataPageContent() {
       />
 
       <div className="space-y-2">
-        <h2 className="text-4xl font-bold tracking-tighter text-white">Data Ingestion</h2>
+        <h2 className="font-playfair text-4xl font-medium tracking-tight text-white">Data Ingestion</h2>
         <p className="text-base text-white/40 font-medium max-w-2xl leading-relaxed">
           Supply business drivers for the selected project. OptX accepts raw CSV streams or structured quick-start profiles.
         </p>
@@ -218,7 +221,7 @@ function DataPageContent() {
 
       {loadError ? <p className="text-sm text-destructive">{loadError}</p> : null}
 
-      <div className="bg-[#1A1A1A]/40 backdrop-blur-3xl border border-white/5 rounded-3xl p-8 shadow-2xl">
+      <div className="glass-card rounded-xl p-8">
         <Tabs
           value={dataEntryMode}
           onValueChange={(value) => setDataEntryMode(value as "quick_start" | "advanced")}

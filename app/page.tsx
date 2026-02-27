@@ -81,13 +81,17 @@ const stats = [
 
 export default function Dashboard() {
   return (
-    <div className="space-y-8">
+    <div className="relative space-y-8">
+      {/* Ambient blobs */}
+      <div className="ambient-blob blob-emerald absolute -top-20 right-0" />
+      <div className="ambient-blob blob-lime absolute top-[400px] -left-40" />
+
       {/* Welcome section */}
-      <div>
-        <h2 className="text-2xl font-bold tracking-tight">
+      <div className="relative z-10">
+        <h2 className="font-playfair text-4xl font-medium tracking-tight">
           Welcome to OptX
         </h2>
-        <p className="text-muted-foreground mt-1">
+        <p className="text-muted-foreground mt-2">
           AI-powered business simulation and optimization. Get started by adding
           your business data.
         </p>

@@ -395,7 +395,7 @@ export function QuickStartForm({ onSaved }: QuickStartFormProps) {
                     key={cat}
                     type="button"
                     onClick={() => setNewExpenseName(cat)}
-                    className="rounded-md border border-border px-2 py-1 text-xs text-muted-foreground hover:bg-accent hover:text-foreground transition-colors"
+                    className="rounded-md border border-white/[0.08] px-2 py-1 text-xs text-muted-foreground hover:bg-white/[0.05] hover:text-foreground transition-colors"
                   >
                     + {cat}
                   </button>
@@ -432,7 +432,7 @@ export function QuickStartForm({ onSaved }: QuickStartFormProps) {
               {businessData.expenses!.map((expense) => (
                 <div
                   key={expense.id}
-                  className="flex items-center justify-between rounded-lg border border-border p-3"
+                  className="flex items-center justify-between rounded-lg border border-white/[0.08] p-3"
                 >
                   <div>
                     <p className="text-sm font-medium">{expense.name}</p>

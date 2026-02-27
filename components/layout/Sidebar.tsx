@@ -35,21 +35,21 @@ export function Sidebar() {
   return (
     <aside
       className={cn(
-        "fixed left-0 top-0 z-40 flex h-screen flex-col border-r border-white/5 bg-black/30 backdrop-blur-3xl transition-all duration-300",
-        "shadow-[inset_1px_0_0_rgba(255,255,255,0.06)]",
+        "fixed left-0 top-0 z-40 flex h-screen flex-col border-r border-white/[0.06] transition-all duration-300",
+        "backdrop-blur-[32px] bg-[rgba(13,31,28,0.6)]",
         collapsed ? "w-16" : "w-64"
       )}
     >
       {/* Logo */}
       <div
         className={cn(
-          "flex h-20 items-center border-b border-white/5",
+          "flex h-20 items-center border-b border-white/[0.06]",
           collapsed ? "justify-center px-2" : "px-8"
         )}
       >
         <span
           className={cn(
-            "optx-wordmark font-black tracking-[0.15em] uppercase bg-gradient-to-r from-white via-white/90 to-white/60 bg-clip-text text-transparent",
+            "optx-wordmark font-black tracking-[0.15em] uppercase bg-gradient-to-r from-white via-white/90 to-lime-400 bg-clip-text text-transparent",
             collapsed ? "text-lg" : "text-xl"
           )}
         >
@@ -76,20 +76,20 @@ export function Sidebar() {
                 key={item.href}
                 href={item.href}
                 className={cn(
-                  "flex items-center rounded-xl transition-all duration-500",
+                  "flex items-center rounded-xl transition-all duration-300",
                   collapsed
                     ? "justify-center px-0 py-3"
                     : "gap-4 px-4 py-3",
                   "text-xs font-bold uppercase tracking-widest",
                   isActive
-                    ? "bg-white/5 text-white shadow-[0_0_20px_rgba(255,255,255,0.05)] border border-white/10"
+                    ? "sidebar-item-active text-lime-400"
                     : "text-white/40 hover:text-white/80 hover:bg-white/5"
                 )}
               >
                 <item.icon
                   className={cn(
                     "h-4 w-4 shrink-0",
-                    isActive ? "text-white" : "text-white/40"
+                    isActive ? "text-emerald-400" : "text-white/40"
                   )}
                 />
                 {!collapsed && item.label}
@@ -115,7 +115,7 @@ export function Sidebar() {
       {/* Settings + Collapse toggle */}
       <div
         className={cn(
-          "border-t border-white/5",
+          "border-t border-white/[0.06]",
           collapsed ? "p-2" : "p-6"
         )}
       >
@@ -125,7 +125,7 @@ export function Sidebar() {
               <TooltipTrigger asChild>
                 <Link
                   href="/settings"
-                  className="flex items-center justify-center rounded-xl px-0 py-3 text-xs font-bold uppercase tracking-widest text-white/40 transition-all duration-500 hover:bg-white/5 hover:text-white/80"
+                  className="flex items-center justify-center rounded-xl px-0 py-3 text-xs font-bold uppercase tracking-widest text-white/40 transition-all duration-300 hover:bg-white/5 hover:text-white/80"
                 >
                   <Settings className="h-4 w-4" />
                 </Link>
@@ -137,7 +137,7 @@ export function Sidebar() {
           ) : (
             <Link
               href="/settings"
-              className="flex items-center gap-4 rounded-xl px-4 py-3 text-xs font-bold uppercase tracking-widest text-white/40 transition-all duration-500 hover:bg-white/5 hover:text-white/80"
+              className="flex items-center gap-4 rounded-xl px-4 py-3 text-xs font-bold uppercase tracking-widest text-white/40 transition-all duration-300 hover:bg-white/5 hover:text-white/80"
             >
               <Settings className="h-4 w-4" />
               Settings

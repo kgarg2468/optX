@@ -19,7 +19,7 @@ function getDeltaInfo(delta: string) {
   if (delta.startsWith("-")) {
     return { icon: TrendingDown, className: "text-rose-400 bg-rose-400/10" };
   }
-  return { icon: Minus, className: "text-muted-foreground bg-muted/50" };
+  return { icon: Minus, className: "text-lime-400 bg-lime-400/10" };
 }
 
 export function NodeHoverPopover({ node, position }: NodeHoverPopoverProps) {
@@ -55,8 +55,8 @@ export function NodeHoverPopover({ node, position }: NodeHoverPopoverProps) {
   return (
     <div
       className={cn(
-        "fixed z-50 w-[240px] rounded-xl border bg-black/80 backdrop-blur-2xl shadow-2xl px-3.5 py-2.5 pointer-events-none",
-        "border-white/10",
+        "fixed z-50 w-[240px] rounded-xl border glass-card backdrop-blur-2xl shadow-2xl px-3.5 py-2.5 pointer-events-none",
+        "border-white/[0.08]",
         "shadow-[0_8px_32px_rgba(0,0,0,0.6)]"
       )}
       style={{ left: x, top: y }}

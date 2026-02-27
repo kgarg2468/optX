@@ -59,7 +59,7 @@ export function ProjectHeader({
 
   return (
     <>
-      <div className="rounded-2xl border border-border bg-card/50 backdrop-blur-xl p-5 shadow-lg">
+      <div className="rounded-2xl glass-card p-5 shadow-lg">
         <div className="flex flex-wrap items-center gap-3">
           <Button variant="outline" size="sm" onClick={onBackToProjects}>
             <ArrowLeft className="mr-2 h-3 w-3" />

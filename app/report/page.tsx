@@ -23,7 +23,7 @@ export default function ReportsPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-2xl font-bold tracking-tight">Reports</h2>
+        <h2 className="font-playfair text-3xl font-medium tracking-tight">Reports</h2>
         <p className="text-muted-foreground mt-1">
           View AI-generated financial reports from your simulations.
         </p>
@@ -48,9 +48,7 @@ export default function ReportsPage() {
             <div
               key={report.id}
               className={cn(
-                "group rounded-xl border border-border/50 bg-card/50 p-5 transition-all hover:bg-muted/20 hover:border-border cursor-pointer",
-                "shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]",
-                "hover:shadow-[inset_0_1px_0_rgba(255,255,255,0.06),0_8px_24px_rgba(0,0,0,0.2)]"
+                "group glass-card card-hover rounded-xl p-5 cursor-pointer"
               )}
               onClick={() => router.push(`/report/${report.id}`)}
             >

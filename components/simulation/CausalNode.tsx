@@ -26,7 +26,7 @@ function getDeltaInfo(delta: string) {
   if (delta.startsWith("-")) {
     return { icon: TrendingDown, className: "text-rose-400 bg-rose-400/10" };
   }
-  return { icon: Minus, className: "text-muted-foreground bg-muted/50" };
+  return { icon: Minus, className: "text-lime-400 bg-lime-400/10" };
 }
 
 function CausalNodeComponent({ data, selected }: NodeProps & { data: CausalNodeData }) {
@@ -48,7 +48,7 @@ function CausalNodeComponent({ data, selected }: NodeProps & { data: CausalNodeD
   return (
     <div
       className={cn(
-        "group relative min-w-[220px] max-w-[280px] rounded-xl border bg-card/95 backdrop-blur-sm px-4 py-3.5 shadow-lg transition-all duration-200",
+        "group relative min-w-[220px] max-w-[280px] rounded-xl glass-card px-4 py-3.5 shadow-lg transition-all duration-200",
         `border-l-[3px]`,
         config.borderClass,
         selected && "ring-2 ring-offset-1 ring-offset-background shadow-xl",

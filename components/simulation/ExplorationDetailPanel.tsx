@@ -121,9 +121,9 @@ export function ExplorationDetailPanel({
   };
 
   return (
-    <div className="flex h-full flex-col border-l border-white/8 bg-black/40 backdrop-blur-xl shadow-[-20px_0_40px_rgba(0,0,0,0.3)]">
+    <div className="flex h-full flex-col border-l border-white/[0.08] glass-card backdrop-blur-xl shadow-[-20px_0_40px_rgba(0,0,0,0.3)]">
       {/* Header */}
-      <div className="flex items-center justify-between border-b border-border/50 px-4 py-3">
+      <div className="flex items-center justify-between border-b border-white/[0.08] px-4 py-3">
         <h3 className="text-sm font-semibold">
           {selectedNode ? selectedNode.label : "Scenario Overview"}
         </h3>
@@ -213,7 +213,7 @@ export function ExplorationDetailPanel({
                     {msg.content}
                   </div>
                 ) : (
-                  <div className="rounded-xl border border-white/8 bg-white/[0.03] backdrop-blur-sm px-3.5 py-2.5 space-y-1">
+                  <div className="rounded-xl border border-white/[0.08] bg-white/[0.03] backdrop-blur-sm px-3.5 py-2.5 space-y-1">
                     <span className="text-[9px] font-medium text-muted-foreground uppercase tracking-wider">OptX</span>
                     <p className="text-xs leading-relaxed text-foreground">
                       {highlightFinanceTerms(msg.content)}
@@ -223,7 +223,7 @@ export function ExplorationDetailPanel({
               </div>
             ))}
             {isLoading && (
-              <div className="rounded-xl border border-white/8 bg-white/[0.03] px-4 py-3 space-y-2">
+              <div className="rounded-xl border border-white/[0.08] bg-white/[0.03] px-4 py-3 space-y-2">
                 <div className="h-1.5 w-3/4 rounded-full bg-white/15 animate-pulse" />
                 <div className="h-1.5 w-1/2 rounded-full bg-white/10 animate-pulse [animation-delay:150ms]" />
               </div>
@@ -276,7 +276,7 @@ function ScenarioSummary({ scenario }: { scenario: MockScenarioDetail }) {
         ))}
       </div>
 
-      <div className="rounded-lg border border-border/50 p-3">
+      <div className="rounded-lg border border-white/[0.08] p-3">
         <p className="text-[10px] font-medium text-muted-foreground mb-2">
           CAUSAL NODES
         </p>

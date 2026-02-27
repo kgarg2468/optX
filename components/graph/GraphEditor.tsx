@@ -173,24 +173,24 @@ export function GraphEditor({
         nodeTypes={nodeTypes}
         fitView
         deleteKeyCode={["Backspace", "Delete"]}
-        className="bg-background"
+        className="bg-forest-950"
         proOptions={{ hideAttribution: true }}
       >
-        <Background gap={20} size={1} className="!bg-background" />
-        <Controls className="!bg-card !border-border !shadow-sm [&>button]:!bg-card [&>button]:!border-border [&>button]:!text-foreground" />
+        <Background gap={20} size={1} className="!bg-forest-950" />
+        <Controls className="!bg-white/[0.05] !backdrop-blur-xl !border-white/[0.08] !shadow-sm [&>button]:!bg-white/[0.05] [&>button]:!border-white/[0.08] [&>button]:!text-foreground [&>button:hover]:!bg-white/[0.1]" />
         <MiniMap
-          className="!bg-card !border-border"
+          className="!bg-white/[0.05] !backdrop-blur-xl !border-white/[0.08]"
           nodeColor={(n) => {
             const type = (n.data as unknown as GraphNodeData)?.type ?? "financial";
             const colors: Record<string, string> = {
-              financial: "hsl(160 40% 50%)",
-              market: "hsl(250 50% 60%)",
-              brand: "hsl(300 55% 60%)",
-              operations: "hsl(30 60% 55%)",
-              logic: "hsl(0 0% 55%)",
-              metric: "hsl(70 45% 55%)",
+              financial: "#C5D46A",   // lime-400
+              market: "#34D399",      // emerald-400
+              brand: "#38BDF8",       // sky-400
+              operations: "#FB7185",  // rose-400
+              logic: "#94A3B8",       // slate-400
+              metric: "#FBBF24",      // amber-400
             };
-            return colors[type] ?? "hsl(0 0% 50%)";
+            return colors[type] ?? "#94A3B8";
           }}
         />
       </ReactFlow>

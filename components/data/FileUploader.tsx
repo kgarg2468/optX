@@ -127,9 +127,9 @@ export function FileUploader({
   if (parsed && file) {
     return (
       <div className="space-y-3">
-        <div className="flex items-center justify-between rounded-lg border border-border p-3">
+        <div className="flex items-center justify-between rounded-lg border border-emerald-400/30 bg-emerald-400/5 p-3">
           <div className="flex items-center gap-3">
-            <CheckCircle2 className="h-4 w-4 text-chart-2" />
+            <CheckCircle2 className="h-4 w-4 text-emerald-400" />
             <div>
               <p className="text-sm font-medium">{file.name}</p>
               <p className="text-xs text-muted-foreground">
@@ -143,10 +143,10 @@ export function FileUploader({
         </div>
 
         {/* Data preview */}
-        <div className="overflow-x-auto rounded-lg border border-border">
+        <div className="overflow-x-auto rounded-lg border border-white/[0.08]">
           <table className="w-full text-xs">
             <thead>
-              <tr className="border-b border-border bg-muted/50">
+              <tr className="border-b border-white/[0.08] bg-white/[0.03]">
                 {parsed.headers.map((h) => (
                   <th
                     key={h}
@@ -159,7 +159,7 @@ export function FileUploader({
             </thead>
             <tbody>
               {parsed.rows.slice(0, 5).map((row, i) => (
-                <tr key={i} className="border-b border-border last:border-0">
+                <tr key={i} className="border-b border-white/[0.08] last:border-0">
                   {parsed.headers.map((h) => (
                     <td key={h} className="px-3 py-2">
                       {String(row[h] ?? "")}
@@ -170,7 +170,7 @@ export function FileUploader({
             </tbody>
           </table>
           {parsed.rowCount > 5 && (
-            <div className="px-3 py-2 text-xs text-muted-foreground border-t border-border">
+            <div className="px-3 py-2 text-xs text-muted-foreground border-t border-white/[0.08]">
               Showing 5 of {parsed.rowCount} rows
             </div>
           )}
@@ -189,10 +189,10 @@ export function FileUploader({
         onDragLeave={() => setIsDragging(false)}
         onDrop={handleDrop}
         onClick={() => inputRef.current?.click()}
-        className={`flex cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed p-8 transition-colors ${
+        className={`flex cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed p-8 transition-colors glass-card ${
           isDragging
-            ? "border-primary bg-primary/5"
-            : "border-border hover:border-muted-foreground/50"
+            ? "border-lime-400 bg-lime-400/5"
+            : "border-white/[0.08] hover:border-white/20"
         }`}
       >
         <input
@@ -204,7 +204,7 @@ export function FileUploader({
         />
         {isProcessing ? (
           <div className="flex flex-col items-center gap-2">
-            <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+            <div className="h-8 w-8 animate-spin rounded-full border-2 border-lime-400 border-t-transparent" />
             <p className="text-sm text-muted-foreground">Processing file...</p>
           </div>
         ) : (

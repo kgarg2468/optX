@@ -226,7 +226,7 @@ export default function ScenarioPage({
   return (
     <div className="flex h-[calc(100vh-3.5rem)] flex-col -m-6">
       {/* Top bar */}
-      <div className="flex items-center justify-between border-b border-border px-4 py-2.5">
+      <div className="flex items-center justify-between border-b border-white/[0.08] px-4 py-2.5 glass-card">
         <div className="flex items-center gap-3">
           <Button variant="ghost" size="icon" className="h-8 w-8" asChild>
             <Link href="/simulate">
@@ -294,7 +294,7 @@ export default function ScenarioPage({
           />
         </div>
         {rightPanel === "chat" ? (
-          <div className="w-80 border-l border-border">
+          <div className="w-80 border-l border-white/[0.08]">
             <ChatPanel scenarioId={id} />
           </div>
         ) : (
