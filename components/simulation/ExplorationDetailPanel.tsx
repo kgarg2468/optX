@@ -31,6 +31,18 @@ const DEMO_RESPONSES: Record<string, string> = {
     "Looking at the pinned variables together: these nodes form a connected subgraph in the causal model. Changes in the upstream nodes cascade through to drive the downstream metrics. The combined effect shows strong synergy — the interaction effects amplify individual impacts by roughly 15-20% based on the Bayesian network analysis.",
 };
 
+function generateAIInsight(node: MockCausalNode): string {
+  const insights: Record<string, string> = {
+    financial: `This financial metric shifts from ${node.currentValue} to ${node.proposedValue}, a ${node.delta} change that directly impacts the bottom line. The causal model shows this is a high-leverage variable for profitability.`,
+    market: `Market dynamics drive this ${node.delta} shift. The change from ${node.currentValue} to ${node.proposedValue} in ${node.label} represents a significant competitive move that cascades through downstream revenue nodes.`,
+    brand: `Brand perception metrics like ${node.label} have delayed but compounding effects. The ${node.delta} improvement builds organic momentum that reduces long-term CAC and strengthens customer LTV.`,
+    operations: `Operational improvements of ${node.delta} in ${node.label} create sustainable cost advantages. Moving from ${node.currentValue} to ${node.proposedValue} compounds over time through efficiency gains.`,
+    metric: `This KPI tracks the combined effect of upstream changes. The ${node.delta} movement in ${node.label} reflects the aggregate impact of multiple causal drivers in the model.`,
+    logic: `This logic node governs conditional effects in the causal chain. When ${node.label} changes by ${node.delta}, it triggers downstream adjustments across connected variables.`,
+  };
+  return insights[node.category] ?? insights.metric!;
+}
+
 function getConnectedNodes(scenario: MockScenarioDetail, nodeId: string) {
   const incoming = scenario.edges
     .filter((e) => e.target === nodeId)
@@ -247,6 +259,7 @@ function NodeDetails({
 }) {
   const config = NODE_CONFIGS[node.category];
   const { incoming, outgoing } = getConnectedNodes(scenario, node.id);
+  const aiInsight = generateAIInsight(node);
 
   return (
     <div className="space-y-4 pt-3">
@@ -280,6 +293,16 @@ function NodeDetails({
       <p className="text-xs text-muted-foreground">
         {highlightFinanceTerms(node.impact)}
       </p>
+
+      {/* AI Insight */}
+      <div className="rounded-xl glass-card px-3.5 py-3 space-y-1.5">
+        <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">
+          AI Insight
+        </p>
+        <p className="text-[11px] text-muted-foreground leading-relaxed">
+          {highlightFinanceTerms(aiInsight)}
+        </p>
+      </div>
 
       {/* Connected Nodes */}
       {incoming.length > 0 && (
