@@ -137,7 +137,7 @@ GET  /api/results/{id}      → fetch simulation results + accuracy report
 
 ## Team
 
-Built by **Krish** (backend + math pipeline + AI agents) and team (frontend + UX).
+Built by **Krish Garg**.
 
 ---
 
