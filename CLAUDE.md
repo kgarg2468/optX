@@ -16,9 +16,12 @@ npx shadcn@latest add <component>  # Add ShadCN component (style: new-york)
 cd python
 pip install -r requirements.txt
 python -m uvicorn main:app --reload --port 8000
+
+# Python tests (unittest + FastAPI TestClient)
+cd python && python -m pytest tests/ -v
 ```
 
-No test framework is configured yet. Both services must run simultaneously for full functionality.
+Both services must run simultaneously for full functionality. No frontend test framework is configured yet.
 
 ## Architecture
 
@@ -34,11 +37,12 @@ Next.js API routes also read/write Supabase server-side (lib/supabase/server.ts)
 ```
 
 ### Frontend State
-Six independent Zustand stores in `lib/store/`:
+Seven independent Zustand stores in `lib/store/` (re-exported from `lib/store/index.ts`):
 - **business-store** — business data, data sources, entry mode
 - **project-store** — project CRUD, active project selection
 - **scenario-store** — scenarios, graph state (nodes/edges), view mode
 - **simulation-store** — config, status, progress, results
+- **simulation-workbench-store** — workbench mode, guided templates, reasoning trace events, run sessions, assumptions, panel state
 - **chat-store** — messages, streaming state, contextReportId, contextScenarioId
 - **ui-store** — active page, sidebar, command palette
 
@@ -47,12 +51,14 @@ All types are centralized in `lib/types/index.ts`. Key type hierarchies:
 - `Scenario` → `ScenarioVariable` + `GraphState` (nodes/edges)
 - `SimulationResult` → `MonteCarloResult`, `BayesianNetworkResult`, `SensitivityResult`, `BacktestResult`
 - `AgentCoordinatorOutput` → `AgentAnalysis[]` → `AgentFinding[]`
+- `RunSession` → `ReasoningEvent[]` (with `ReasoningStage` and `ReasoningArtifactRef`)
 
 ### Python Backend
 - `/chat` — OpenAI-powered chat with two modes: `parse_scenario` (gpt-4o-mini, returns structured JSON) and general chat (gpt-4o)
 - `/simulate` — 5-layer pipeline: Variable Universe → Monte Carlo → Bayesian Network → Sensitivity Analysis → Backtesting
 - `/agents/analyze` — 6 parallel agents (market, financial, growth, risk, brand, operations) using gpt-4o, with debate rounds and convergence scoring
 - `/extract-variables` — extracts variables from uploaded row data (CSV/spreadsheet) for data ingestion
+- `/simulate/stream` — SSE streaming endpoint for the simulation workbench, emits `reasoning_event` and `final_result` envelopes
 - `python/engine/garch.py` exists but is experimental and not yet integrated into the simulation pipeline
 
 ### Next.js API Routes
@@ -61,6 +67,7 @@ All types are centralized in `lib/types/index.ts`. Key type hierarchies:
 - `app/api/agents/route.ts` — POST + GET, proxies to Python `/agents/analyze`
 - `app/api/data/route.ts` — POST + GET, saves/loads business + data sources to Supabase
 - `app/api/scenario/route.ts` — POST + GET + PUT + DELETE, full CRUD for scenarios
+- `app/api/simulate/stream/route.ts` — POST, SSE streaming proxy to Python `/simulate/stream`, persists finalized results to Supabase
 - `app/api/health/route.ts` — GET, Supabase table health check
 
 ### Scenario System
@@ -68,6 +75,13 @@ All types are centralized in `lib/types/index.ts`. Key type hierarchies:
 - **Graph Editor** (`components/graph/`) — `@xyflow/react` canvas at `/scenario/[id]` with three-panel layout: NodePalette | Canvas | Chat/ConfigPanel
 - **Sync** — `lib/utils/graph-sync.ts` provides `variablesToGraph()` and `graphToVariables()` for bidirectional wizard↔graph conversion
 - **Node types** — 6 types (financial, market, brand, operations, logic, metric) configured in `lib/utils/node-config.ts`
+
+### Simulation Workbench
+- **Shell** (`components/simulation/workbench/`) — prompt-first simulation interface replacing the original `/simulate` entry
+- **Modes:** `quick_prompt` (freeform) and `guided_build` (template-driven: Revenue, Branding, Social Presence, Custom)
+- **Components:** ModeChooser → PromptComposer → SimulationWorkbenchShell with ResizableReasoningPanel (Trace/Artifacts/Assumptions tabs), ArtifactDock, TraceTimeline, AssumptionLedger
+- **Streaming:** Frontend consumes SSE from `/api/simulate/stream` — reasoning events update the trace panel in real-time, final result is persisted to Supabase
+- **Design doc:** `docs/plans/2026-03-03-simulation-workbench-design.md`
 
 ### UI & Design System
 ShadCN components live in `components/ui/`. Import path: `@/components/ui/button`.
