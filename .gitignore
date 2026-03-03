@@ -39,3 +39,18 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# internal docs / plans / reports (not for public repo)
+/docs/
+/reports/
+/plan/
+/pitch/
+/project/
+
+# loose planning markdown files at root
+videoanalysis.md
+videoanalysis_assets/
+cluely-snapshot.md
+refactor-plan.md
+skills-lock.json
+"UCR AI Tech Venture Research Report.md"
