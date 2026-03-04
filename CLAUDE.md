@@ -6,19 +6,21 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ```bash
 # Frontend (Next.js 16 + React 19)
-npm run dev          # Start dev server
+npm run dev          # Start dev server (run from project root)
 npm run build        # Production build (also runs TypeScript check)
 npm run lint         # ESLint with next/core-web-vitals + typescript rules
 npm start            # Serve production build
 npx shadcn@latest add <component>  # Add ShadCN component (style: new-york)
 
 # Python backend (FastAPI)
-cd python
-pip install -r requirements.txt
-python -m uvicorn main:app --reload --port 8000
+# NOTE: Requires Python 3.10+ (scipy>=1.14.0 constraint). Use python3.13 (Homebrew).
+# First-time setup — install deps into Python 3.13:
+cd python && python3.13 -m pip install -r requirements.txt --break-system-packages
+# Start the backend:
+cd python && python3.13 -m uvicorn main:app --reload --port 8000
 
 # Python tests (unittest + FastAPI TestClient)
-cd python && python -m pytest tests/ -v
+cd python && python3.13 -m pytest tests/ -v
 ```
 
 Both services must run simultaneously for full functionality. No frontend test framework is configured yet.
